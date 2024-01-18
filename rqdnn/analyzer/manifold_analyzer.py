@@ -1,5 +1,4 @@
-class Result:
-    pass
+from partition_map import ManifoldPartitionMap
 
 class ReliabilitySpecificManifoldAnalyzer:
     def __init__(self, model, test_data, rel_measure) -> None:
@@ -7,10 +6,13 @@ class ReliabilitySpecificManifoldAnalyzer:
         self.test_data = test_data
         self.rel_measure = rel_measure
 
-    def analyze(self) -> Result:
-        (rel_measures, features) = self._calc_reliability_measures()
+    def analyze(self) -> ManifoldPartitionMap:
+        rel_measures,features = self._calc_reliability_measures()
 
-        return Result()
+        partition_map = ManifoldPartitionMap()
+        partition_map.fit(rel_measures, features)
+
+        return partition_map
 
     def _calc_reliability_measures(self):
         rel_measures = []
