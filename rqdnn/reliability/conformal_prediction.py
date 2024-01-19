@@ -4,6 +4,7 @@ class ConformalPrediction:
     def __init__(self, model, calibration_set, error_rate=0.1) -> None:
         self.model = model
         self.qhat = self._calc_qhat(calibration_set, error_rate)
+        self.error_rate = error_rate
 
     def _calc_qhat(self, calibration_set, error_rate):
         conformal_scores = [1 - self.model.confidence(x,y) for x,y in iter(calibration_set)]

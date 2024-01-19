@@ -19,7 +19,7 @@ class ReliabilitySpecificManifoldAnalyzer:
         features = []
 
         for x,_ in self.test_data:
-            rel_measures.append(self.rel_measure.success_prob_given(x))
+            rel_measures.append(self.rel_measure.conditional_success(x))
             features.append(self.model.project(x))
         
         return (rel_measures, features)

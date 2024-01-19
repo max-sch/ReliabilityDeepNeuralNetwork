@@ -1,15 +1,25 @@
+from conformal_prediction import ConformalPrediction
+
 class ReliabilityMeasure:
     def __init__(self, model) -> None:
         self.model = model
 
-    def success_prob_given(self, x):
-        '''Determines the conditional success probability of the model's prediction given input x'''
+    def conditional_success(self, x, y_true):
+        '''Determines the conditional success probability of the model's prediction given input x and the true ouput y_true'''
         raise NotImplementedError
     
 class ConformalPredictionBasedMeasure(ReliabilityMeasure):
     def __init__(self, model, calibration_set) -> None:
         super().__init__(model)
-        self.calibration_set = calibration_set
+        self.conformal_predictor = ConformalPrediction(model, calibration_set)
 
-    def success_prob_given(self, x):
-        raise NotImplementedError
+    def conditional_success(self, x, y_true):
+        norm_confidence = self._normalized_confidence(x, y_true)
+        return norm_confidence * (1 - self.conformal_predictor.error_rate)
+
+    def _normalized_confidence(self, x, y_true):
+        norm_const = sum(self.model.confidence(x, y) for y in self.conformal_predictor.calc_prediction_set(x))
+        return self.model.confidence(x, y_true) / norm_const
+
+
+
