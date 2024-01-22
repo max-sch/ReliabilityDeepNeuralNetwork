@@ -2,13 +2,16 @@ import keras
 
 class Dataset:
     def __iter__(self):
-        self.idx = 1
+        self.idx = 0
         return self
     
     def __next__(self):
-        x,y = self.X[self.idx], self.Y[self.idx]
-        self.idx += 1
-        return (x,y)
+        if self.idx < self.size():
+            x,y = self.X[self.idx], self.Y[self.idx]
+            self.idx += 1
+            return (x,y)
+        else:
+            raise StopIteration
 
     def size(self):
         raise NotImplementedError
@@ -18,6 +21,10 @@ class MNISTDataset(Dataset):
         super().__init__()
         self.X = X
         self.Y = Y
+        self.num_examples = len(X)
+
+    def size(self):
+        return self.num_examples
 
     def create_train():
         (x_train, y_train), _ = keras.datasets.mnist.load_data()
