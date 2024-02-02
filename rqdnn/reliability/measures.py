@@ -1,4 +1,4 @@
-from conformal_prediction import ConformalPrediction
+from reliability.conformal_prediction import AdaptiveConformalPrediction
 
 class ReliabilityMeasure:
     def __init__(self, model) -> None:
@@ -11,7 +11,7 @@ class ReliabilityMeasure:
 class ConformalPredictionBasedMeasure(ReliabilityMeasure):
     def __init__(self, model, calibration_set) -> None:
         super().__init__(model)
-        self.conformal_predictor = ConformalPrediction(model, calibration_set)
+        self.conformal_predictor = AdaptiveConformalPrediction(model, calibration_set)
 
     def conditional_success(self, x, y_true):
         norm_confidence = self._normalized_confidence(x, y_true)
@@ -19,6 +19,8 @@ class ConformalPredictionBasedMeasure(ReliabilityMeasure):
 
     def _normalized_confidence(self, x, y_true):
         norm_const = sum(self.model.confidence(x, y) for y in self.conformal_predictor.calc_prediction_set(x))
+        if norm_const == 0:
+            return 0
         return self.model.confidence(x, y_true) / norm_const
 
 

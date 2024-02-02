@@ -22,11 +22,6 @@ class Model:
         '''Returns the prediction confidence associated with output y given input x'''
         raise NotImplementedError
 
-    #def prediction_with_confidences(self, x):
-    #    '''Predicts output y for input x and returns confidences'''
-    #    confidences = self.get_confidences(x)
-    #    return (max(confidences, key=confidences.get), confidences)
-
     def project(self, x):
         '''Projects input x to the feature space'''
         raise NotImplementedError

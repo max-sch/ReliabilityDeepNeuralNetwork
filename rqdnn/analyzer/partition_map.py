@@ -15,7 +15,7 @@ class ManifoldPartitionMap:
         Y = []
 
         for feature, rel_measure in zip(features, rel_measures):
-            X.append[feature]
+            X.append(feature)
             for bin in self.bins:
                 if rel_measure <= bin:
                     Y.append(bin)
