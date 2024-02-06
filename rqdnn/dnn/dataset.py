@@ -34,16 +34,16 @@ class MNISTDataset(Dataset):
     def create_test():
         _, (x_test, y_test) = keras.datasets.mnist.load_data()
         #return MNISTDataset(x_test, y_test)
-        cal_size=100
+        cal_size=1000
         idx = np.array([1] * cal_size + [0] * (len(x_test) - cal_size)) > 0
         np.random.shuffle(idx)
         X, Y = x_test[idx,:], y_test[idx]
         return MNISTDataset(X, Y)
     
-    def create_cal(cal_size=1000):
+    def create_cal(size=1000):
         _, (x_test, y_test) = keras.datasets.mnist.load_data()
 
-        idx = np.array([1] * cal_size + [0] * (len(x_test) - cal_size)) > 0
+        idx = np.array([1] * size + [0] * (len(x_test) - size)) > 0
         np.random.shuffle(idx)
         X, Y = x_test[idx,:], y_test[idx]
         return MNISTDataset(X, Y)
