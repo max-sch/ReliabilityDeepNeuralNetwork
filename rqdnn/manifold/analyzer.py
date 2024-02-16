@@ -14,14 +14,10 @@ class ReliabilitySpecificManifoldAnalyzer:
         rel_analyzer = ConformalPredictionBasedReliabilityAnalyzer(model=self.model,
                                                                    calibration_set=MNISTDataset.create_cal(),
                                                                    tuning_set=MNISTDataset.create_cal())
-        lower_success_bounds = rel_analyzer.analyze(self.test_data)
-        success = sum([p for _,p in lower_success_bounds.items()]) / self.test_data.size()
-        print("Success probability: " + str(success))
-            
-        return None
-        #rel_measures,features = self._calc_reliability_measures()
+        result = rel_analyzer.analyze(self.test_data)
+        print("Model: " + self.model.name + ", Success probability: " + str(result.success))
+        
+        partition_map = ManifoldPartitionMap(model=self.model)
+        partition_map.fit(result.reliability_scores)
 
-        #partition_map = ManifoldPartitionMap(bin_resolution=0.05)
-        #partition_map.fit(features, rel_measures)
-
-        #return partition_map
+        return partition_map

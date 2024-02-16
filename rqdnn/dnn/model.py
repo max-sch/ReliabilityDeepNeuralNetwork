@@ -3,7 +3,8 @@ import keras
 from keras import layers
 
 class Model:
-    def __init__(self, model_file) -> None:
+    def __init__(self, name, model_file) -> None:
+        self.name = name
         self.model = self.load_from(model_file)
 
     def load_from(self, model_file):
@@ -31,6 +32,7 @@ class Model:
     
 class MNISTTestModel(Model):
     def __init__(self, model_file="MNISTTestModel.keras") -> None:
+        self.name = "MNISTTestModel"
         self.num_classes = 10
         self.input_shape = (28, 28, 1)
         if not model_file==None:
@@ -117,6 +119,7 @@ class MNISTTestModel(Model):
     
 class MNISTTestModel2(Model):
     def __init__(self, model_file="MNISTTestModel2.keras") -> None:
+        self.name = "MNISTTestModel2"
         self.num_classes = 10
         self.input_shape = (28, 28, 1)
         if not model_file==None:

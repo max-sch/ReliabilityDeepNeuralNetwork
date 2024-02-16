@@ -2,23 +2,29 @@ from sklearn import tree
 import numpy as np
 
 class ManifoldPartitionMap:
-    def __init__(self, bin_resolution, max_depth=10) -> None:
-        self.bins = np.arange(0, 1 + bin_resolution, bin_resolution)
+    def __init__(self, model, max_depth=10) -> None:
+        self.model = model
         self.partitionMap = tree.DecisionTreeClassifier(max_depth=max_depth)
+        self.score_map = {}
 
-    def fit(self, features, rel_measures):
-        X,Y = self._sort_into_bins(features, rel_measures)
-        self.partitionMap.fit(X, Y)
+    def fit(self, reliability_scores):
+        features, scores = self._prepare_for_analysis(reliability_scores)
+        self.partitionMap.fit(features, scores)
 
-    def _sort_into_bins(self, features, rel_measures):
-        X = []
-        Y = []
+    def _prepare_for_analysis(self, rel_scores):
+        n = len(rel_scores)
+        m = len(self.model.project(rel_scores[0][0]))
+        features = np.zeros((n, m))
+        scores = np.zeros(n, dtype=int)
 
-        for feature, rel_measure in zip(features, rel_measures):
-            X.append(feature)
-            for bin in self.bins:
-                if rel_measure <= bin:
-                    Y.append(bin)
-                    break
+        score_idx = 0
 
-        return (X,Y)
+        for i, (x, score) in enumerate(rel_scores):
+            features[i,:] = self.model.project(x)
+            
+            if score not in self.score_map.keys():
+                self.score_map[score] = score_idx
+                score_idx += 1
+            scores[i] = self.score_map[score]
+
+        return (features, scores)
