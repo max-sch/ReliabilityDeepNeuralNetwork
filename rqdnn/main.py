@@ -1,7 +1,6 @@
 from dnn.dataset import MNISTDataset
 from dnn.model import MNISTTestModel, MNISTTestModel2
-from analyzer.manifold_analyzer import ReliabilitySpecificManifoldAnalyzer
-from reliability.measures import ConformalPredictionBasedMeasure
+from manifold.analyzer import ReliabilitySpecificManifoldAnalyzer
 
 import os
 import numpy as np

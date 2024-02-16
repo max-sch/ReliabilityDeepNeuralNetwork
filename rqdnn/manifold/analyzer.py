@@ -1,5 +1,5 @@
-from analyzer.partition_map import ManifoldPartitionMap
-from reliability.conformal_prediction import AdaptiveConformalPrediction, RegularizedAdaptiveConformalPrediction
+from manifold.partition_map import ManifoldPartitionMap
+from reliability.analyzer import ConformalPredictionBasedReliabilityAnalyzer
 from dnn.dataset import MNISTDataset
 import numpy as np
 
@@ -11,19 +11,22 @@ class ReliabilitySpecificManifoldAnalyzer:
         self.step_size = step_size
 
     def analyze(self) -> ManifoldPartitionMap:
-        error_rate = self.step_size
-        enum_dataset = {k:v for k, (v,_) in enumerate(self.test_data)}
-        lower_success_bounds = {}
-        self._determine_success(error_rate=error_rate, 
-                                cal_data=MNISTDataset.create_cal(),
-                                tuning_data=MNISTDataset.create_cal(), 
-                                enum_dataset=enum_dataset, 
-                                lower_success_bounds=lower_success_bounds)
-
+        #error_rate = self.step_size
+        #enum_dataset = {k:v for k, (v,_) in enumerate(self.test_data)}
+        #lower_success_bounds = {}
+        #self._determine_success(error_rate=error_rate, 
+        #                        cal_data=MNISTDataset.create_cal(),
+        #                        tuning_data=MNISTDataset.create_cal(), 
+        #                        enum_dataset=enum_dataset, 
+        #                        lower_success_bounds=lower_success_bounds)
+        #
+        
+        rel_analyzer = ConformalPredictionBasedReliabilityAnalyzer(model=self.model,
+                                                                   calibration_set=MNISTDataset.create_cal(),
+                                                                   tuning_set=MNISTDataset.create_cal())
+        lower_success_bounds = rel_analyzer.analyze(self.test_data)
         success = sum([p for _,p in lower_success_bounds.items()]) / self.test_data.size()
         print("Success probability: " + str(success))
-        for i,suc in lower_success_bounds.items():
-            print(str(i) + ": " + str(suc))
             
         return None
         #rel_measures,features = self._calc_reliability_measures()
