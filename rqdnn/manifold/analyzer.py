@@ -11,16 +11,6 @@ class ReliabilitySpecificManifoldAnalyzer:
         self.step_size = step_size
 
     def analyze(self) -> ManifoldPartitionMap:
-        #error_rate = self.step_size
-        #enum_dataset = {k:v for k, (v,_) in enumerate(self.test_data)}
-        #lower_success_bounds = {}
-        #self._determine_success(error_rate=error_rate, 
-        #                        cal_data=MNISTDataset.create_cal(),
-        #                        tuning_data=MNISTDataset.create_cal(), 
-        #                        enum_dataset=enum_dataset, 
-        #                        lower_success_bounds=lower_success_bounds)
-        #
-        
         rel_analyzer = ConformalPredictionBasedReliabilityAnalyzer(model=self.model,
                                                                    calibration_set=MNISTDataset.create_cal(),
                                                                    tuning_set=MNISTDataset.create_cal())
@@ -35,38 +25,3 @@ class ReliabilitySpecificManifoldAnalyzer:
         #partition_map.fit(features, rel_measures)
 
         #return partition_map
-    
-    def _determine_success(self, cal_data, tuning_data, error_rate, enum_dataset, lower_success_bounds):
-        if (error_rate > 1) or (len(enum_dataset) == 0):
-            return
-        
-        print("Error rate: " + str(error_rate))
-        conf_predictor = RegularizedAdaptiveConformalPrediction(model=self.model,
-                                                                calibration_set=cal_data,
-                                                                tuning_data=tuning_data,
-                                                                error_rate=error_rate)
-
-        cached_keys = []
-        for i,x in enum_dataset.items():
-            pred_set = conf_predictor.calc_prediction_set(x)
-            if (len(pred_set) == 1) and (i not in lower_success_bounds.keys()):
-                lower_success_bounds[i] = 1 - error_rate
-                cached_keys.append(i)
-
-        new_error_rate = error_rate + self.step_size
-        new_enum_dataset = {k:v for k,v in enum_dataset.items() if k not in cached_keys}
-        self._determine_success(error_rate=new_error_rate, 
-                                cal_data=cal_data,
-                                tuning_data=tuning_data, 
-                                enum_dataset=new_enum_dataset, 
-                                lower_success_bounds=lower_success_bounds)
-
-    def _calc_reliability_measures(self):
-        rel_measures = []
-        features = []
-
-        for x,y in iter(self.test_data):
-            rel_measures.append(self.rel_measure.conditional_success(x, y))
-            features.append(self.model.project(x))
-        
-        return (rel_measures, features)
