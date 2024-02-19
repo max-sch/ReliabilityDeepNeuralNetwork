@@ -15,9 +15,10 @@ class ReliabilitySpecificManifoldAnalyzer:
                                                                    calibration_set=MNISTDataset.create_cal(),
                                                                    tuning_set=MNISTDataset.create_cal())
         result = rel_analyzer.analyze(self.test_data)
+
         print("Model: " + self.model.name + ", Success probability: " + str(result.success))
         
         partition_map = ManifoldPartitionMap(model=self.model)
-        partition_map.fit(result.reliability_scores)
+        partition_map.approximate(result.reliability_scores)
 
         return partition_map

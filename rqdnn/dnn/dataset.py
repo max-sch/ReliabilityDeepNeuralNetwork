@@ -31,10 +31,10 @@ class MNISTDataset(Dataset):
         (x_train, y_train), _ = keras.datasets.mnist.load_data()
         return MNISTDataset(x_train, y_train)
     
-    def create_test(train_size=1000):
+    def create_test(test_size=1000):
         _, (x_test, y_test) = keras.datasets.mnist.load_data()
         #return MNISTDataset(x_test, y_test)
-        idx = np.array([1] * train_size + [0] * (len(x_test) - train_size)) > 0
+        idx = np.array([1] * test_size + [0] * (len(x_test) - test_size)) > 0
         np.random.shuffle(idx)
         X, Y = x_test[idx,:], y_test[idx]
         return MNISTDataset(X, Y)
