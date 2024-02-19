@@ -19,6 +19,6 @@ class ReliabilitySpecificManifoldAnalyzer:
         print("Model: " + self.model.name + ", Success probability: " + str(result.success))
         
         partition_map = ManifoldPartitionMap(model=self.model)
-        partition_map.approximate(result.reliability_scores)
+        partition_map.estimate_manifold(result.reliability_scores)
 
         return partition_map
