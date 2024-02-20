@@ -4,7 +4,7 @@ import numpy as np
 class ManifoldPartitionMap:
     def __init__(self, model) -> None:
         self.model = model
-        self.partitionMap = set()
+        self.partitioned_space = set()
         self.score_map = {}
         self.estimated_manifold = None
 
@@ -20,12 +20,12 @@ class ManifoldPartitionMap:
         for i in range(n):
             leave_node = leave_nodes[i]
 
-            partitions = [p for p in self.partitionMap if p.node_id == leave_node]
+            partitions = [p for p in self.partitioned_space if p.node_id == leave_node]
             if len(partitions) == 0:
                 score_idx = np.argmax(self.estimated_manifold.tree_.value[leave_node])
-                partition = Partition(leave_node, score_idx)
+                partition = Partition(leave_node, self._get_score(score_idx))
 
-                self.partitionMap.add(partition)
+                self.partitioned_space.add(partition)
             else:
                 partition = partitions[0]
 
@@ -45,7 +45,6 @@ class ManifoldPartitionMap:
 
                 partition.add_or_update_interval(feature, min_val, max_val)
 
-
     def _prepare_for_analysis(self, rel_scores):
         n = len(rel_scores)
         m = len(self.model.project(rel_scores[0][0]))
@@ -64,20 +63,32 @@ class ManifoldPartitionMap:
 
         return (features, scores)
     
+    def _get_score(self, score_idx):
+        return [s for s,idx in self.score_map.items() if idx == score_idx][0]
+    
 class Partition:
-    def __init__(self, node_id, score_idx) -> None:
+    def __init__(self, node_id, rel_score) -> None:
         self.node_id = node_id
-        self.score_idx = score_idx 
-        self.feature_interval = {}
+        self.rel_score = rel_score 
+        self.feature_intervals = {}
+
+    def __str__(self) -> str:
+        str_representation = "Partition with ID {id} and reliability score {score}: \n".format(id=self.node_id, score=self.rel_score)
+        for feature, interval in sorted(self.feature_intervals.items()):
+            str_representation += "{space}feature: {feature}, interval: [{min_val}, {max_val}]\n".format(space= "\t",
+                                                                                                         feature=feature, 
+                                                                                                         min_val=interval[0],
+                                                                                                         max_val=interval[1])
+        return str_representation
 
     def add_or_update_interval(self, feature, min_val, max_val):
-        if feature not in self.feature_interval.keys():
-            self.feature_interval[feature] = (min_val, max_val)
+        if feature not in self.feature_intervals.keys():
+            self.feature_intervals[feature] = (min_val, max_val)
         else:
-            current = self.feature_interval[feature]
+            current = self.feature_intervals[feature]
             new_min_val = min_val if min_val < current[0] else current[0] 
             new_max_val = max_val if max_val > current[1] else current[1]
             
-            self.feature_interval[feature] = (new_min_val, new_max_val)
+            self.feature_intervals[feature] = (new_min_val, new_max_val)
 
 

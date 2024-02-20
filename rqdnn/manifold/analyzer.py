@@ -21,4 +21,7 @@ class ReliabilitySpecificManifoldAnalyzer:
         partition_map = ManifoldPartitionMap(model=self.model)
         partition_map.estimate_manifold(result.reliability_scores)
 
+        for partition in sorted(partition_map.partitioned_space, key=lambda p: p.rel_score, reverse=True):
+            print(str(partition))
+
         return partition_map
