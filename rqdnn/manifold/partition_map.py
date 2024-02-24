@@ -3,27 +3,39 @@ from scipy.stats import qmc
 
 import numpy as np
 
+num_samples = 1000
+
 class ManifoldPartitionMap:
     def __init__(self, model) -> None:
         self.model = model
         self.partitioned_space = set()
         self.score_map = {}
-        self.estimated_manifold = None
+        self.decision_tree = tree.DecisionTreeClassifier()
 
-    def estimate_manifold(self, reliability_scores, decision_tree=tree.DecisionTreeClassifier()):
-        features, scores = self._prepare_for_analysis(reliability_scores)
-        self.estimated_manifold = decision_tree.fit(features, scores)
+    def estimate_manifold(self, reliability_scores):
+        features, score_idxs = self._prepare_for_analysis(reliability_scores)
+        self._estimate_manifold(features=features, scores=score_idxs)
 
-        print(tree.export_text(self.estimated_manifold))
+    def restimate_manifold(self, features, scores):
+        self.decision_tree = tree.DecisionTreeClassifier()
+        self.partitioned_space = set()
 
-        leave_nodes = self.estimated_manifold.apply(features)
+        score_idxs = np.apply_along_axis(func1d=lambda s:self.score_map[s], axis=0, arr=scores)
+        self._estimate_manifold(features=features, score_idxs=score_idxs)
+
+    def _estimate_manifold(self, features, score_idxs):
+        self.decision_tree.fit(features, score_idxs)
+
+        print(tree.export_text(self.decision_tree))
+
+        leave_nodes = self.decision_tree.apply(features)
         for i in range(len(features)):
             leave_node = leave_nodes[i]
             feature = features[i,:]
 
             partitions = [p for p in self.partitioned_space if p.node_id == leave_node]
             if len(partitions) == 0:
-                score_idx = np.argmax(self.estimated_manifold.tree_.value[leave_node])
+                score_idx = np.argmax(self.decision_tree.tree_.value[leave_node])
                 partition = Partition(leave_node, self._get_score(score_idx))
 
                 self.partitioned_space.add(partition)
@@ -80,18 +92,21 @@ class Partition:
             
             self.feature_dim_ranges[feature_dim] = (min_val, max_val)
 
+    def is_singleton(self):
+        spans = self._get_spans()
+        return np.all(spans == 0)
+    
+    def num_feature_dims(self):
+        return len(self.feature_dim_ranges)
+    
     def accumulated_spans(self):
         return sum(self._get_spans())
     
-    def sample_features(self, num_samples=1000):
+    def sample_features(self):
         spans = np.array(self._get_spans())
         non_zeros = spans != 0
         non_zero_span_idxs = np.arange(len(spans))[non_zeros]
         zero_span_idxs = np.arange(len(spans))[~non_zeros]
-        
-        is_singleton = len(spans) == len(zero_span_idxs)
-        if is_singleton:
-            return np.array([])
 
         samples = qmc.Halton(d=len(non_zero_span_idxs), scramble=False).random(n=num_samples)
         
