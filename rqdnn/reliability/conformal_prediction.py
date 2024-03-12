@@ -19,10 +19,15 @@ class ConformalPrediction:
         return np.quantile(conformal_scores, q_level, interpolation='higher')
     
     def _calc_scores(self, calibration_set):
+        '''An internal function for calculating the scores.'''
         raise NotImplementedError
 
     def calc_prediction_set(self, x):
-        raise NotImplementedError
+        '''Calulates the prediction set for input x'''
+        return self.calc_prediction_set_for_confidences(self.model.get_confidences(x))
+    
+    def calc_prediction_set_for_confidences(self, confidences):
+        '''Calculates the prediction set for confidences, e.g., the softmax result'''
     
 class DefaultConformalPrediction(ConformalPrediction):
     def __init__(self, model, calibration_set, error_rate=0.1, class_to_idx_mapper=lambda x:x) -> None:
@@ -31,17 +36,8 @@ class DefaultConformalPrediction(ConformalPrediction):
     def _calc_scores(self, calibration_set):
         return [1 - self.model.confidence(x,y) for x,y in iter(calibration_set)]
     
-    def calc_prediction_set(self, x):
-        result = set() 
-        confidences = self.model.get_confidences(x)
-        for y,confidence in confidences.items():
-            if confidence >= 1-self.qhat:
-                result.add(y)
-        if len(result) == 0:
-            print("Another one")
-        
-        return result
-        #return {y for y,confidence in self.model.get_confidences(x).items() if confidence >= 1-self.qhat}
+    def calc_prediction_set_for_confidences(self, confidences):
+        return {y for y,confidence in self.model.get_confidences(x).items() if confidence >= 1-self.qhat}
     
 class AdaptiveConformalPrediction(ConformalPrediction):
     def __init__(self, model, calibration_set, error_rate=0.1, class_to_idx_mapper=lambda x:x) -> None:
@@ -55,15 +51,13 @@ class AdaptiveConformalPrediction(ConformalPrediction):
             scores.append(score)
         return scores
     
-    def calc_prediction_set(self, x):
-        softmax = self.model.get_confidences(x)
-        
+    def calc_prediction_set_for_confidences(self, confidences):
         prediction_set = set()
         acc_scores = 0
-        for y in sort_descending(softmax):
+        for y in sort_descending(confidences):
             prediction_set.add(y)
 
-            acc_scores += softmax[y]
+            acc_scores += confidences[y]
             if acc_scores > self.qhat:
                 break            
 
@@ -119,11 +113,10 @@ class RegularizedAdaptiveConformalPrediction(ConformalPrediction):
 
         return reg_softmax.cumsum(axis=1)[np.arange(n), L] - np.random.rand(n) * reg_softmax[np.arange(n), L]
     
-    def calc_prediction_set(self, x):
-        prediction = self.model.get_confidences(x)
-        softmax = np.zeros((1, len(prediction)))
+    def calc_prediction_set_for_confidences(self, confidences):
+        softmax = np.zeros((1, len(confidences)))
 
-        for c,p in prediction.items():
+        for c,p in confidences.items():
             softmax[0, self.class_to_idx_mapper(c)] = p
         
         desc_ordered_idx = softmax.argsort(1)[:,::-1]

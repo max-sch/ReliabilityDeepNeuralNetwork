@@ -14,6 +14,10 @@ class Model:
     def get_confidences(self, x) -> dict:
         '''Returns the prediction confidence associated with input x'''
         raise NotImplementedError
+    
+    def get_confidences_for_feature(self, feature) -> dict:
+        '''Returns the prediction confidence associated with the given feature'''
+        raise NotImplementedError
 
     def predict(self, x):
         '''Predicts output y for input x'''
@@ -92,6 +96,12 @@ class MNISTTestModel(Model):
     def get_confidences(self, x) -> dict:
         x = self._prepare_input(x)
         return {class_idx: float(probability) for class_idx, probability in enumerate(self.model(x)[0])}
+    
+    def get_confidences_for_feature(self, feature) -> dict:
+        softmax = self.model.layers[-1]
+        soft_max_predictions = softmax(feature)
+        test = {class_idx: float(probability) for class_idx, probability in enumerate(soft_max_predictions[0])}
+        return test
 
     def predict(self, x):
         x = self._prepare_input(x)
@@ -126,7 +136,6 @@ class MNISTTestModel2(Model):
             self.model = self.load_from(model_file)
             
             self.feature_extractor = self.load_from(model_file)
-            self.feature_extractor.summary()
             self.feature_extractor.pop()
             self.feature_extractor.pop()
             self.feature_extractor.summary()
@@ -182,6 +191,12 @@ class MNISTTestModel2(Model):
         x = self._prepare_input(x)
         soft_max_predictions = self.model(x)
         return int(np.argmax(soft_max_predictions, axis=1))
+    
+    def get_confidences_for_feature(self, feature) -> dict:
+        softmax = self.model.layers[-1]
+        soft_max_predictions = softmax(feature)
+        test = {class_idx: float(probability) for class_idx, probability in enumerate(soft_max_predictions[0])}
+        return test
     
     def confidence(self, x, y): 
         return self.get_confidences(x)[y]
