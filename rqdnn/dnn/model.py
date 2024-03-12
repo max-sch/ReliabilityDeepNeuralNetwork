@@ -23,12 +23,20 @@ class Model:
         '''Predicts output y for input x'''
         raise NotImplementedError
     
+    def predict_all(self, X):
+        '''Predicts outputs Y for input batch X'''
+        raise NotImplementedError
+    
     def confidence(self, x, y):
         '''Returns the prediction confidence associated with output y given input x'''
         raise NotImplementedError
 
     def project(self, x):
         '''Projects input x to the feature space'''
+        raise NotImplementedError
+    
+    def project_all(self, X):
+        '''Projects a batch of inputs X to the feature space'''
         raise NotImplementedError
     
     def get_output_shape(self):
@@ -108,12 +116,21 @@ class MNISTTestModel(Model):
         soft_max_predictions = self.model(x)
         return int(np.argmax(soft_max_predictions, axis=1))
     
+    def predict_all(self, X):
+        X_prep = self._prepare_x_data(X)
+        soft_max_predictions = self.model(X_prep)
+        return np.argmax(soft_max_predictions, axis=1)
+    
     def confidence(self, x, y): 
         return self.get_confidences(x)[y]
 
     def project(self, x):
         x = self._prepare_input(x)
         return [float(element) for element in self.feature_extractor(x)[0]]
+    
+    def project_all(self, X):
+        X_prep = self._prepare_x_data(X)
+        return self.feature_extractor(X_prep)
     
     def _prepare_input(self, X):
         return self._prepare_x_data(X).reshape(1, self.input_shape[0], self.input_shape[1], self.input_shape[2])
@@ -191,6 +208,11 @@ class MNISTTestModel2(Model):
         x = self._prepare_input(x)
         soft_max_predictions = self.model(x)
         return int(np.argmax(soft_max_predictions, axis=1))
+    
+    def predict_all(self, X):
+        X_prep = self._prepare_x_data(X)
+        soft_max_predictions = self.model(X_prep)
+        return np.argmax(soft_max_predictions, axis=1)
     
     def get_confidences_for_feature(self, feature) -> dict:
         softmax = self.model.layers[-1]

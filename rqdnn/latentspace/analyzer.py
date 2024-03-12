@@ -5,14 +5,35 @@ import numpy as np
 import math
 
 class ReliabilitySpecificManifoldAnalyzer:
-    def __init__(self, model, test_data, step_size=0.01) -> None:
+    def __init__(self, model, test_data) -> None:
         self.model = model
         self.test_data = test_data
         self.rel_analyzer = ConformalPredictionBasedReliabilityAnalyzer(model=self.model,
                                                                         calibration_set=MNISTDataset.create_randomly(),
                                                                         tuning_set=MNISTDataset.create_randomly())
-        self.step_size = step_size
 
+    def analyze_gaussian(self, gaussian_mixture) -> ManifoldPartitionMap:
+        result = self.rel_analyzer.analyze_feature_space(self.test_data)
+
+        partition_map = ManifoldPartitionMap(model=self.model)
+        partition_map.estimate_manifold_on_feature_space(result.reliability_scores)
+        
+        self._print_progress(success=result.success, partition_map=partition_map)
+
+        for _ in range(10):
+            feature_samples = gaussian_mixture.sample_features(num_samples_per_iteration)
+
+            dataset = Dataset(X=feature_samples, Y=np.zeros(num_samples_per_iteration))
+            result = self.rel_analyzer.analyze_feature_space(dataset)
+            
+            old_rel_scores = [(f, p.rel_score) for p in partition_map.partitioned_space for f in p.partitioned_features]
+            new_rel_scores = result.reliability_scores + old_rel_scores
+            partition_map.reestimate_manifold(reliability_scores=new_rel_scores)
+
+            self._print_progress(success=result.success, partition_map=partition_map)
+
+
+    
     def analyze(self) -> ManifoldPartitionMap:
         result = self.rel_analyzer.analyze_input_space(self.test_data)
         

@@ -25,6 +25,10 @@ class ManifoldPartitionMap:
         features, score_idxs = self._prepare_for_input_space_analysis(reliability_scores)
         self._estimate_manifold(features=features, score_idxs=score_idxs)
 
+    def estimate_manifold_on_feature_space(self, reliability_scores):
+        features, score_idxs = self._prepare_for_feature_space_analysis(reliability_scores)
+        self._estimate_manifold(features=features, score_idxs=score_idxs)
+
     def reestimate_manifold(self, reliability_scores):
         self.decision_tree = tree.DecisionTreeClassifier()
         self.partitioned_space = set()
@@ -77,7 +81,10 @@ class ManifoldPartitionMap:
         features = np.zeros((n, m))
         score_idxs = np.zeros(n, dtype=int)
 
-        score_idx = max(self.score_map.values()) + 1
+        if len(self.score_map.values()) == 0:
+            score_idx = 0
+        else:
+            score_idx = max(self.score_map.values()) + 1
 
         for i, (x, score) in enumerate(rel_scores):
             features[i,:] = x
