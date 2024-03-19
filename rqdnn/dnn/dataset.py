@@ -30,6 +30,14 @@ class MNISTDataset(Dataset):
         (x_train, y_train), _ = keras.datasets.mnist.load_data()
         return MNISTDataset(x_train, y_train)
     
+    def create_less_train():
+        (x_train, y_train), _ = keras.datasets.mnist.load_data()
+
+        idx = np.array([1] * 100 + [0] * (len(x_train) - 100)) > 0
+        np.random.shuffle(idx)
+        X, Y = x_train[idx,:], y_train[idx]
+        return MNISTDataset(X, Y)
+    
     def create_test():
         _, (x_test, y_test) = keras.datasets.mnist.load_data()
         return MNISTDataset(x_test, y_test)
@@ -41,4 +49,17 @@ class MNISTDataset(Dataset):
         np.random.shuffle(idx)
         X, Y = x_test[idx,:], y_test[idx]
         return MNISTDataset(X, Y)
-
+    
+    def create_first():
+        _, (x_test, y_test) = keras.datasets.mnist.load_data()
+        
+        idx = range(5000)
+        X, Y = x_test[idx,:], y_test[idx]
+        return MNISTDataset(X, Y)
+    
+    def create_second():
+        _, (x_test, y_test) = keras.datasets.mnist.load_data()
+        
+        idx = range(5000, 10000)
+        X, Y = x_test[idx,:], y_test[idx]
+        return MNISTDataset(X, Y)

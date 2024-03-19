@@ -7,7 +7,6 @@ class ReliabilityAnalysisResult:
         self.success = success
         self.reliability_scores = reliability_scores
 
-
 class ReliabilityAnalyzer:
     def __init__(self, model) -> None:
         self.model = model

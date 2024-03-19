@@ -1,4 +1,7 @@
 from sklearn.mixture import GaussianMixture
+from scipy.stats import multivariate_normal
+
+import numpy as np
 
 class GaussianClusterAnalyzer:
     def __init__(self, means_init) -> None:
@@ -8,4 +11,4 @@ class GaussianClusterAnalyzer:
         self.gaussian_mixture = self.gaussian_mixture.fit(features)
 
     def sample_features(self, num_samples=1000):
-        return self.gaussian_mixture.sample(num_samples)[0]        
+        return self.gaussian_mixture.sample(num_samples)[0]      

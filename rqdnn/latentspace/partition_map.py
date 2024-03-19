@@ -5,7 +5,7 @@ from numpy.linalg import norm
 
 import numpy as np
 
-num_samples_per_iteration = 1000
+num_samples_per_iteration = 10000
 
 class ManifoldPartitionMap:
     def __init__(self, model) -> None:
@@ -13,6 +13,10 @@ class ManifoldPartitionMap:
         self.partitioned_space = set()
         self.score_map = {}
         self.decision_tree = tree.DecisionTreeClassifier()
+
+    def calc_scores(self, features):
+        score_idxs = self.decision_tree.predict(features)
+        return [self._get_score(s) for s in score_idxs]
 
     def num_feature_dims(self):
         try:
@@ -110,6 +114,12 @@ class Partition:
         return "Partition with ID {id} and reliability score {score} and acc spans {acc} \n".format(id=self.node_id, 
                                                                                                     score=self.rel_score, 
                                                                                                     acc=self.accumulated_spans())
+    
+    def contains(self, feature):
+        for feature_dim, feature_dim_range in self.feature_dim_ranges.items():
+            if not (feature_dim_range[0] <= feature[feature_dim] <= feature_dim_range[1]):
+                return False
+        return True          
     
     def include(self, feature):
         self.partitioned_features.append(feature)

@@ -32,7 +32,29 @@ class ReliabilitySpecificManifoldAnalyzer:
 
             self._print_progress(success=result.success, partition_map=partition_map)
 
+        return partition_map
+    
+    def analyze_gaussian2(self, gaussian_mixture):
+        result = self.rel_analyzer.analyze_feature_space(self.test_data)
+        
+        self._print_progress2(result.reliability_scores, gaussian_mixture)
 
+        rel_scores = result.reliability_scores
+        for _ in range(10):
+            feature_samples = gaussian_mixture.sample_features(num_samples_per_iteration)
+
+            dataset = Dataset(X=feature_samples, Y=np.zeros(num_samples_per_iteration))
+            result = self.rel_analyzer.analyze_feature_space(dataset)
+            
+            rel_scores = rel_scores + result.reliability_scores
+            self._print_progress2(rel_scores=rel_scores, gaussian_mixture=gaussian_mixture)
+
+        partition_map = ManifoldPartitionMap(model=self.model)
+        partition_map.estimate_manifold_on_feature_space(result.reliability_scores)
+        
+        self._print_progress(success=result.success, partition_map=partition_map)
+
+        return partition_map, rel_scores
     
     def analyze(self) -> ManifoldPartitionMap:
         result = self.rel_analyzer.analyze_input_space(self.test_data)
@@ -82,3 +104,10 @@ class ReliabilitySpecificManifoldAnalyzer:
         print("Number of partitions: {size}".format(size=len(partition_map.partitioned_space)))
         acc = sum(p.accumulated_spans() for p in partition_map.partitioned_space)
         print("Overall acc spans: {acc}".format(acc=acc))
+
+    def _print_progress2(self, rel_scores, gaussian_mixture):
+        _, scores = list(zip(*rel_scores))
+        n = len(scores)
+        success = np.matmul(scores, np.transpose(np.ones((n)))) / n
+        
+        print("Model: {name}, Success probability: {success}".format(name=self.model.name, success=success))
