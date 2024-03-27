@@ -16,10 +16,10 @@ class ManifoldPartitionMap:
         return [self._get_score(s) for s in score_idxs]
 
     def estimate_manifold(self, reliability_scores):
-        features, score_idxs = self._prepare_for_feature_space_analysis(reliability_scores)
+        features, score_idxs = self._prepare_for_analysis(reliability_scores)
         self.partition_alg.partition(features, score_idxs)
     
-    def _prepare_for_feature_space_analysis(self, rel_scores):
+    def _prepare_for_analysis(self, rel_scores):
         n = len(rel_scores)
         m = len(rel_scores[0][0])
         features = np.zeros((n, m))

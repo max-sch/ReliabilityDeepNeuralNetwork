@@ -7,24 +7,26 @@ class ReliabilitySpecificManifoldAnalyzer:
         self.model = model
         self.test_data = test_data
         self.rel_analyzer = rel_analyzer
+        self.sampled_rel_scores = []
 
-    def analyze(self, gaussian_mixture, partition_alg, num_runs=10):
+    def sample(self, gaussian_mixture, num_runs=10):
         result = self.rel_analyzer.analyze_feature_space(self.test_data)
         
         self._print_progress(result.reliability_scores)
 
-        rel_scores = result.reliability_scores
+        self.sampled_rel_scores = result.reliability_scores
         for _ in range(num_runs):
             feature_samples = gaussian_mixture.sample_features(num_samples_per_iteration)
 
             dataset = Dataset(X=feature_samples, Y=np.zeros(num_samples_per_iteration))
             result = self.rel_analyzer.analyze_feature_space(dataset)
             
-            rel_scores = rel_scores + result.reliability_scores
-            self._print_progress(rel_scores=rel_scores)
-
+            self.sampled_rel_scores = self.sampled_rel_scores + result.reliability_scores
+            self._print_progress(rel_scores=self.sampled_rel_scores)
+    
+    def analyze(self, partition_alg):
         partition_map = ManifoldPartitionMap(self.model, partition_alg)
-        partition_map.estimate_manifold(result.reliability_scores)
+        partition_map.estimate_manifold(self.sampled_rel_scores)
 
         return partition_map
 

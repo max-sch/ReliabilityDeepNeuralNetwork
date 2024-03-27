@@ -1,4 +1,5 @@
 import numpy as np
+from scipy import stats
 
 class Metric:
    def __init__(self, name) -> None:
@@ -29,3 +30,10 @@ class AverageReliabilityScores(Metric):
         
         return "{val1} (avg correct), {val2} (avg incorrect)".format(val1=avg_scores_correct, 
                                                                      val2=avg_scores_incorrect)
+    
+class PearsonCorrelation(Metric):
+    def __init__(self) -> None:
+        super().__init__("Pearson correlation")
+
+    def apply(self, evaluation_result) -> str:
+        raise NotImplementedError

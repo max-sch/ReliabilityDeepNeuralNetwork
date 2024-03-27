@@ -8,16 +8,20 @@ import numpy as np
 
 class EvaluationResult:
     def __init__(self, 
-                 diffs, 
+                 diffs,
+                 evaluation_set, 
                  features_correct, 
                  features_incorrect, 
                  scores_correct, 
-                 scores_incorrect) -> None:
+                 scores_incorrect,
+                 soft_max=None) -> None:
         self.diffs = diffs
+        self.evaluation_set = evaluation_set
         self.features_correct = features_correct
         self.features_incorrect = features_incorrect
         self.scores_correct = scores_correct
         self.scores_incorrect = scores_incorrect
+        self.soft_max = soft_max
 
 class Evaluation:
     def evaluate(self, 
@@ -26,7 +30,8 @@ class Evaluation:
                  evaluation_set, 
                  rel_analyzer,
                  partition_algs, 
-                 metrics):
+                 metrics,
+                 include_soft_max=False):
         for model in models:
             print_progress("Calculate reliability scores")
 
@@ -37,13 +42,15 @@ class Evaluation:
             diffs = predictions - evaluation_set.Y
             features_correct, features_incorrect = self._prepare_features(diffs, evaluation_set, model)
             scores_correct, scores_incorrect = self._prepare_rel_scores(features_correct, features_incorrect, rel_analyzer)
+            soft_max = model.soft_max(evaluation_set.X) if include_soft_max else None
             result = EvaluationResult(diffs=diffs, 
+                                      evaluation_set=evaluation_set,
                                       features_correct=features_correct, 
                                       features_incorrect=features_incorrect, 
                                       scores_correct=scores_correct, 
-                                      scores_incorrect=scores_incorrect
+                                      scores_incorrect=scores_incorrect,
+                                      soft_max=soft_max
             )
-
 
             true_success = TrueSuccessProbability()
             true_prob = true_success.apply(result)
@@ -57,27 +64,28 @@ class Evaluation:
 
             predictions = model.predict_all(gaussian_cal_set.X)
             features = model.project_all(gaussian_cal_set.X)
-
             gaussian_mixture = self.estimate_gaussian(features, predictions)
 
             ls_analyzer = ReliabilitySpecificManifoldAnalyzer(model=model, 
                                                               test_data=Dataset(X=features, Y=predictions), 
                                                               rel_analyzer=rel_analyzer
             )
+            ls_analyzer.sample(gaussian_mixture)
 
             for partition_alg in partition_algs:
                 print_progress("Estimated reliability scores based on {approach}".format(approach=partition_alg.name))
 
-                partition_map = ls_analyzer.analyze(gaussian_mixture, partition_alg)
+                partition_map = ls_analyzer.analyze(partition_alg)
 
                 for metric in metrics:
                     scores_correct = partition_map.calc_scores(features_correct)
                     scores_incorrect = partition_map.calc_scores(features_incorrect)
-                    result = EvaluationResult(diffs=diffs, 
-                                              features_correct=features_correct, 
-                                              features_incorrect=features_incorrect, 
+                    result = EvaluationResult(diffs=result.diffs, 
+                                              features_correct=result.features_correct, 
+                                              features_incorrect=result.features_incorrect, 
                                               scores_correct=scores_correct, 
-                                              scores_incorrect=scores_incorrect
+                                              scores_incorrect=scores_incorrect,
+                                              soft_max=result.soft_max
                     )
 
                     quantity = metric.apply(result)
