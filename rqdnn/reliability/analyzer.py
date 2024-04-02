@@ -37,14 +37,6 @@ class ConformalPredictionBasedReliabilityAnalyzer(ReliabilityAnalyzer):
         self.cached_predictors = {}
         self.class_to_idx_mapper=class_to_idx_mapper
     
-    def analyze_feature_space_old(self, dataset):
-        def conf_predictor_switch(conf_predictor, feature):
-            adj_feature = np.zeros((1, len(feature)))
-            adj_feature[0,:] = feature
-            softmax = self.model.get_confidences_for_feature(adj_feature)
-            return conf_predictor.calc_prediction_set_for_confidences(softmax)
-        return self._analyze(dataset=dataset, conf_predictor_switch=conf_predictor_switch)
-    
     def analyze_feature_space(self, dataset):
         placeholder = -1
         lower_success_bounds = np.ones((dataset.size())) * placeholder
@@ -67,9 +59,6 @@ class ConformalPredictionBasedReliabilityAnalyzer(ReliabilityAnalyzer):
 
             # Filter all inputs that have a singleton prediction set and are not already analyzed
             def has_singleton_pred_set(x) -> bool:
-                adj_feature = np.zeros((1, len(x)))
-                adj_feature[0,:] = x
-                test = x.reshape((1, len(x)))
                 softmax = self.model.get_confidences_for_feature(x.reshape((1, len(x))))
                 pred_set = conf_predictor.calc_prediction_set_for_confidences(softmax)
                 return len(pred_set) == 1
