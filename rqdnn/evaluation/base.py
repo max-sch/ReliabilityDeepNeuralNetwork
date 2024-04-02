@@ -1,27 +1,38 @@
 from dnn.dataset import Dataset
 from latentspace.analyzer import ReliabilitySpecificManifoldAnalyzer
 from commons.print import print_progress, print_result
-from evaluation.metrics import TrueSuccessProbability, AverageReliabilityScores
-from evaluation.visual import histoplot
+from evaluation.metrics import TrueSuccessProbability, AverageReliabilityScores, PearsonCorrelation
+from evaluation.visual import histoplot, scatterplot
+from commons.ops import find_type
 
 import numpy as np
 
 class EvaluationResult:
     def __init__(self, 
-                 diffs,
+                 correct_idxs,
+                 incorrect_idxs,
                  evaluation_set, 
-                 features_correct, 
-                 features_incorrect, 
-                 scores_correct, 
-                 scores_incorrect,
-                 soft_max=None) -> None:
-        self.diffs = diffs
+                 features, 
+                 rel_scores,
+                 softmax=None) -> None:
         self.evaluation_set = evaluation_set
-        self.features_correct = features_correct
-        self.features_incorrect = features_incorrect
-        self.scores_correct = scores_correct
-        self.scores_incorrect = scores_incorrect
-        self.soft_max = soft_max
+        self.correct_idxs = correct_idxs
+        self.incorrect_idxs = incorrect_idxs
+        self.features = features
+        self.rel_scores = rel_scores
+        self.softmax = softmax
+
+    def get_correct_features(self):
+        return self.features[self.correct_idxs]
+
+    def get_incorrect_features(self):
+        return self.features[self.incorrect_idxs]
+
+    def get_correct_scores(self):
+        return self.rel_scores[self.correct_idxs]
+
+    def get_incorrect_scores(self):
+        return self.rel_scores[self.incorrect_idxs]
 
 class Evaluation:
     def evaluate(self, 
@@ -31,7 +42,7 @@ class Evaluation:
                  rel_analyzer,
                  partition_algs, 
                  metrics,
-                 include_soft_max=False):
+                 include_softmax=False):
         for model in models:
             print_progress("Calculate reliability scores")
 
@@ -39,28 +50,24 @@ class Evaluation:
             rel_analyzer.model = model
 
             predictions = model.predict_all(evaluation_set.X)
+            features = model.project_all(evaluation_set.X)
+            rel_scores = calc_rel_scores(features, rel_analyzer)
+            softmax = model.softmax(evaluation_set.X) if include_softmax else None
             diffs = predictions - evaluation_set.Y
-            features_correct, features_incorrect = self._prepare_features(diffs, evaluation_set, model)
-            scores_correct, scores_incorrect = self._prepare_rel_scores(features_correct, features_incorrect, rel_analyzer)
-            soft_max = model.soft_max(evaluation_set.X) if include_soft_max else None
-            result = EvaluationResult(diffs=diffs, 
+            result = EvaluationResult(correct_idxs=diffs==0,
+                                      incorrect_idxs=diffs!=0, 
                                       evaluation_set=evaluation_set,
-                                      features_correct=features_correct, 
-                                      features_incorrect=features_incorrect, 
-                                      scores_correct=scores_correct, 
-                                      scores_incorrect=scores_incorrect,
-                                      soft_max=soft_max
+                                      features=features, 
+                                      rel_scores=rel_scores,
+                                      softmax=softmax
             )
 
-            true_success = TrueSuccessProbability()
-            true_prob = true_success.apply(result)
-            avg_score = AverageReliabilityScores()
-            avg_scores = avg_score.apply(result)
+            evaluate_metrics(self._load_std_metrics(), result)
 
-            print_result(metric=true_success.name, values=true_prob)
-            print_result(metric=avg_score.name, values=avg_scores)
-
-            histoplot(scores_correct, scores_incorrect, title="Calculated reliability score distribution")
+            histoplot(scores_correct=result.get_correct_scores(), 
+                      scores_incorrect=result.get_incorrect_scores(), 
+                      title="Calculated reliability score distribution",
+                      show_plot=True)
 
             predictions = model.predict_all(gaussian_cal_set.X)
             features = model.project_all(gaussian_cal_set.X)
@@ -76,44 +83,38 @@ class Evaluation:
                 print_progress("Estimated reliability scores based on {approach}".format(approach=partition_alg.name))
 
                 partition_map = ls_analyzer.analyze(partition_alg)
+                
+                estimated_rel_scores = partition_map.calc_scores(result.features)
+                result = EvaluationResult(correct_idxs=result.correct_idxs,
+                                          incorrect_idxs=result.incorrect_idxs,
+                                          evaluation_set=result.evaluation_set,
+                                          features=result.features,
+                                          rel_scores=estimated_rel_scores,
+                                          softmax=result.softmax
+                )
 
-                for metric in metrics:
-                    scores_correct = partition_map.calc_scores(features_correct)
-                    scores_incorrect = partition_map.calc_scores(features_incorrect)
-                    result = EvaluationResult(diffs=result.diffs, 
-                                              features_correct=result.features_correct, 
-                                              features_incorrect=result.features_incorrect, 
-                                              scores_correct=scores_correct, 
-                                              scores_incorrect=scores_incorrect,
-                                              soft_max=result.soft_max
-                    )
+                histoplot(scores_correct=result.get_correct_scores(), 
+                              scores_incorrect=result.get_incorrect_scores(), 
+                              title="Reliability score distribution based on {approach}".format(approach=partition_alg.name),
+                              show_plot=True)
 
-                    quantity = metric.apply(result)
-
-                    print_result(metric=metric.name, values=quantity)
-
-                    histoplot(scores_correct, scores_incorrect, title="Reliability score distribution based on {approach}".format(approach=partition_alg.name))
+                evaluate_metrics(metrics, result)
 
     def estimate_gaussian(self, features, predictions):
         '''Estimates the gaussian mixture for a set of features and predictions of a given dnn model.'''
         raise NotImplementedError
     
-    def _prepare_features(self, diffs, evaluation_set, model):
-        incorrect_idxs = diffs != 0
-        X_incorrect = evaluation_set.X[incorrect_idxs,:]
-        features_incorrect = model.project_all(X_incorrect)
-
-        correct_idxs = diffs == 0
-        X_correct = evaluation_set.X[correct_idxs,:]
-        features_correct = model.project_all(X_correct)
-
-        return features_correct, features_incorrect
+    def _load_std_metrics(self):
+        return [TrueSuccessProbability(), AverageReliabilityScores()]
     
-    def _prepare_rel_scores(self, features_correct, features_incorrect, rel_analyzer):
-        scores_correct = rel_analyzer.analyze_feature_space(Dataset(X=features_correct, Y=np.zeros((len(features_correct)))))
-        scores_correct = list(zip(*scores_correct.reliability_scores))[1]
 
-        scores_incorrect = rel_analyzer.analyze_feature_space(Dataset(X=features_incorrect, Y=np.zeros((len(features_incorrect)))))
-        scores_incorrect = list(zip(*scores_incorrect.reliability_scores))[1]
+def calc_rel_scores(features, rel_analyzer):
+        result = rel_analyzer.analyze_feature_space(Dataset(X=features, Y=np.zeros((len(features)))))
+        return result.reliability_scores
 
-        return scores_correct, scores_incorrect
+def evaluate_metrics(metrics, result):
+    for metric in metrics:
+        metric.apply(result)
+        metric.print_result()
+        if metric.is_visualizable():
+            metric.visualize()

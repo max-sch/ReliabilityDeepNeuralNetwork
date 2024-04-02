@@ -11,7 +11,7 @@ class Model:
         '''Returns the prediction confidence associated with input x'''
         raise NotImplementedError
     
-    def soft_max(self, X):
+    def softmax(self, X):
         '''Returns the soft max results for input batch X. Must only be implemented, for classifiers.'''
         raise NotImplementedError
 

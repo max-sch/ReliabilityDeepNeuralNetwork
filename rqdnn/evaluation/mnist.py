@@ -2,13 +2,15 @@ from dnn.dataset import Dataset
 from dnn.model import Model
 from latentspace.clustering import GaussianClusterAnalyzer, estimate_init_means
 from reliability.analyzer import ConformalPredictionBasedReliabilityAnalyzer
-from evaluation.metrics import AverageReliabilityScores
+from evaluation.metrics import AverageReliabilityScores, PearsonCorrelation
 from latentspace.partition_map import DecisionTreePartitioning, KnnPartitioning
 from evaluation.base import Evaluation
+from commons.ops import determine_deviation_softmax
 
 import numpy as np
 import keras
 from keras import layers
+
 
 class MNISTEvaluation(Evaluation):
     def evaluate(self):
@@ -16,12 +18,16 @@ class MNISTEvaluation(Evaluation):
         gaussian_cal_set = MNISTDataset.create_first()
         #gaussian_cal_set = MNISTDataset.create_randomly(1000)
         evaluation_set = MNISTDataset.create_second()
-        #evaluation_set = MNISTDataset.create_randomly(1000)
+        #evaluation_set = MNISTDataset.create_randomly(100)
         # The model will be updated through the evaluation; thus, its temporarily set to None
         rel_analyzer = ConformalPredictionBasedReliabilityAnalyzer(model=None,
                                                                    calibration_set=MNISTDataset.create_randomly(),
                                                                    tuning_set=MNISTDataset.create_randomly())
-        metrics = [AverageReliabilityScores()]
+        metrics = [AverageReliabilityScores(), 
+                   PearsonCorrelation(determine_deviation=lambda softmax, true_labels: determine_deviation_softmax(softmax, 
+                                                                                                                   true_labels, 
+                                                                                                                   rel_analyzer.class_to_idx_mapper))
+        ]
         partitioning_algs = [DecisionTreePartitioning(), KnnPartitioning()]
 
         super().evaluate(models=models,
@@ -30,7 +36,7 @@ class MNISTEvaluation(Evaluation):
                          rel_analyzer=rel_analyzer,
                          partition_algs=partitioning_algs,
                          metrics=metrics,
-                         include_soft_max=True)
+                         include_softmax=True)
 
     def train_models(self):
         train_data = MNISTDataset.create_less_train()
@@ -47,6 +53,14 @@ class MNISTEvaluation(Evaluation):
 
     def _load_models(self):
         return [MNISTTestModel3()]
+    
+    def _load_std_metrics(self):
+        pears_corr = PearsonCorrelation(determine_deviation=lambda softmax, true_labels: determine_deviation_softmax(softmax, 
+                                                                                                                     true_labels, 
+                                                                                                                     class_to_idx_mapper=lambda x: x))
+        std_metrics = super()._load_std_metrics()
+        std_metrics.append(pears_corr)
+        return std_metrics
     
 class MNISTDataset(Dataset):
     def __init__(self, X, Y) -> None:
@@ -155,21 +169,21 @@ class MNISTTestModel3(Model):
 
     def predict(self, x):
         x = self._prepare_input(x)
-        soft_max_predictions = self.model(x)
-        return int(np.argmax(soft_max_predictions, axis=1))
+        softmax_predictions = self.model(x)
+        return int(np.argmax(softmax_predictions, axis=1))
     
     def predict_all(self, X):
-        soft_max_predictions = self.soft_max(X)
-        return np.argmax(soft_max_predictions, axis=1)
+        softmax_predictions = self.softmax(X)
+        return np.argmax(softmax_predictions, axis=1)
     
-    def soft_max(self, X):
+    def softmax(self, X):
         X_prep = self._prepare_x_data(X)
         return self.model(X_prep)
     
     def get_confidences_for_feature(self, feature) -> dict:
         softmax = self.model.layers[-1]
-        soft_max_predictions = softmax(feature)
-        test = {class_idx: float(probability) for class_idx, probability in enumerate(soft_max_predictions[0])}
+        softmax_predictions = softmax(feature)
+        test = {class_idx: float(probability) for class_idx, probability in enumerate(softmax_predictions[0])}
         return test
     
     def confidence(self, x, y): 

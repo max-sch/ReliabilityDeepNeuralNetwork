@@ -13,32 +13,27 @@ class ManifoldPartitionMap:
 
     def calc_scores(self, features):
         score_idxs = self.partition_alg.predict(features)
-        return [self._get_score(s) for s in score_idxs]
+        return np.array([self._get_score(s) for s in score_idxs])
 
-    def estimate_manifold(self, reliability_scores):
-        features, score_idxs = self._prepare_for_analysis(reliability_scores)
+    def estimate_manifold(self, features, reliability_scores):
+        score_idxs = self._prepare_for_analysis(reliability_scores)
         self.partition_alg.partition(features, score_idxs)
     
     def _prepare_for_analysis(self, rel_scores):
-        n = len(rel_scores)
-        m = len(rel_scores[0][0])
-        features = np.zeros((n, m))
-        score_idxs = np.zeros(n, dtype=int)
+        score_idxs = np.zeros(len(rel_scores), dtype=int)
 
         if len(self.score_map.values()) == 0:
             score_idx = 0
         else:
             score_idx = max(self.score_map.values()) + 1
 
-        for i, (x, score) in enumerate(rel_scores):
-            features[i,:] = x
-            
+        for i, score in enumerate(rel_scores):
             if score not in self.score_map.keys():
                 self.score_map[score] = score_idx
                 score_idx += 1
             score_idxs[i] = self.score_map[score]
 
-        return (features, score_idxs)
+        return score_idxs
     
     def _get_score(self, score_idx):
         return [s for s,idx in self.score_map.items() if idx == score_idx][0]
