@@ -17,6 +17,10 @@ class Metric:
        '''Prints the results; note that the metric must be applied before.'''
        raise NotImplementedError
     
+    def get_report(self):
+        '''Returns the string formatted result.'''
+        raise NotImplementedError
+    
     def is_visualizable(self):
         '''Specifies whether the metric is able to visualize the results.'''
 
@@ -35,6 +39,9 @@ class TrueSuccessProbability(Metric):
     def print_result(self):
         print_result(metric=self.name, values=str(self.true_success))
 
+    def get_report(self):
+        return "{name}: {result}".format(name=self.name, result=self.true_success)
+
     def is_visualizable(self):
         return False
 
@@ -51,10 +58,38 @@ class AverageReliabilityScores(Metric):
         self.avg_score = calc_avg(np.concatenate((result.get_correct_scores(), result.get_incorrect_scores()), axis=0))
     
     def print_result(self):
-        result = "{val1} (avg), {val2} (avg correct), {val3} (avg incorrect)".format(val1=self.avg_score, 
-                                                                                     val2=self.avg_score_correct,
-                                                                                     val3=self.avg_score_incorrect)
-        print_result(metric=self.name, values=str(result))
+        print_result(metric=self.name, values=self._to_string())
+
+    def get_report(self):
+        return "{name}: {result}".format(name=self.name, result=self._to_string())
+
+    def is_visualizable(self):
+        return False
+    
+    def visualize(self):
+        pass
+
+    def _to_string(self):
+        return "{val1} (avg), {val2} (avg correct), {val3} (avg incorrect)".format(val1=self.avg_score, 
+                                                                                   val2=self.avg_score_correct,
+                                                                                   val3=self.avg_score_incorrect)
+
+class AverageOutputDeviation(Metric):
+    def __init__(self, determine_deviation) -> None:
+        super().__init__("Average output deviation")
+        self.determine_deviation = determine_deviation
+
+    def apply(self, result):
+        softmax_incorrect = result.softmax[result.incorrect_idxs]
+        labels = result.evaluation_set.Y[result.incorrect_idxs]
+        out_deviations = self.determine_deviation(softmax_incorrect, labels)
+        self.avg_output_deviation = calc_avg(out_deviations)
+        
+    def print_result(self):
+        print_result(metric=self.name, values=str(self.avg_output_deviation))
+
+    def get_report(self):
+        return "{name}: {result}".format(name=self.name, result=self.avg_output_deviation)
 
     def is_visualizable(self):
         return False
@@ -77,9 +112,10 @@ class PearsonCorrelation(Metric):
         self.pears_coef = stats.pearsonr(self.output_deviations, self.scores_incorrect)
         
     def print_result(self):
-        result = "pvalue: {pvalue}, statistic: {stat}".format(pvalue=self.pears_coef.pvalue,
-                                                              stat=self.pears_coef.statistic)
-        print_result(metric=self.name, values=result)
+        print_result(metric=self.name, values=self._to_string())
+
+    def get_report(self):
+        return "{name}: {result}".format(name=self.name, result=self._to_string())
         
     def is_visualizable(self):
         return True
@@ -90,3 +126,7 @@ class PearsonCorrelation(Metric):
                     title="Correlation of incorrect scores with output deviations",
                     title_var_compare="Output deviations",
                     show_plot=True)
+        
+    def _to_string(self):
+        return "pvalue: {pvalue}, statistic: {stat}".format(pvalue=self.pears_coef.pvalue,
+                                                            stat=self.pears_coef.statistic)

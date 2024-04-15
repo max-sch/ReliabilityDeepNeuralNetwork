@@ -2,117 +2,141 @@ from dnn.dataset import Dataset
 from dnn.model import Model
 from latentspace.clustering import GaussianClusterAnalyzer, estimate_init_means
 from reliability.analyzer import ConformalPredictionBasedReliabilityAnalyzer
-from evaluation.metrics import AverageReliabilityScores, PearsonCorrelation
+from evaluation.metrics import AverageReliabilityScores, PearsonCorrelation, AverageOutputDeviation
 from latentspace.partition_map import DecisionTreePartitioning, KnnPartitioning
-from evaluation.base import Evaluation
+from evaluation.base import Evaluation, ModelLevel
 from commons.ops import determine_deviation_softmax
 
 import numpy as np
 import keras
 from keras import layers
 
+class_to_idx_mapper = lambda x:x
+
+def determine_softmax_pos_fun(softmax, true_labels):
+    return determine_deviation_softmax(softmax, true_labels, class_to_idx_mapper) 
 
 class MNISTEvaluation(Evaluation):
+    def __init__(self) -> None:
+        self.mnist_provider = MNISTDatasetProvider()
+
     def evaluate(self):
         models = self._load_models()
-        gaussian_cal_set = MNISTDataset.create_first()
-        #gaussian_cal_set = MNISTDataset.create_randomly(1000)
-        evaluation_set = MNISTDataset.create_second()
-        #evaluation_set = MNISTDataset.create_randomly(100)
-        # The model will be updated through the evaluation; thus, its temporarily set to None
-        rel_analyzer = ConformalPredictionBasedReliabilityAnalyzer(model=None,
-                                                                   calibration_set=MNISTDataset.create_randomly(),
-                                                                   tuning_set=MNISTDataset.create_randomly())
-        metrics = [AverageReliabilityScores(), 
-                   PearsonCorrelation(determine_deviation=lambda softmax, true_labels: determine_deviation_softmax(softmax, 
-                                                                                                                   true_labels, 
-                                                                                                                   rel_analyzer.class_to_idx_mapper))
-        ]
+        gaussian_cal_set = self.mnist_provider.create_gaussian_cal()
+        evaluation_set = self.mnist_provider.create_evaluation()
+
+        metrics = [AverageReliabilityScores()]
         partitioning_algs = [DecisionTreePartitioning(), KnnPartitioning()]
 
         super().evaluate(models=models,
                          evaluation_set=evaluation_set,
                          gaussian_cal_set=gaussian_cal_set,
-                         rel_analyzer=rel_analyzer,
                          partition_algs=partitioning_algs,
                          metrics=metrics,
                          include_softmax=True)
 
     def train_models(self):
-        train_data = MNISTDataset.create_less_train()
-        test_data = MNISTDataset.create_test()
+        train_data = self.mnist_provider.create_full_train()
+        test_data = self.mnist_provider.create_evaluation()
 
-        model = MNISTTestModel3(model_file=None)
-        model.train_and_save_model(train_data=train_data, test_data=test_data)
+        model_best = MNISTModel(model_level=ModelLevel.BEST, load_model=False)
+        model_best.train_and_save_model(train_data, test_data)
+
+        train_data = self.mnist_provider.create_half_train()
+
+        model_best = MNISTModel(model_level=ModelLevel.AVG, load_model=False)
+        model_best.train_and_save_model(train_data, test_data)
+
+        train_data = self.mnist_provider.create_one_percent_train()
+
+        model_best = MNISTModel(model_level=ModelLevel.WORSE, load_model=False)
+        model_best.train_and_save_model(train_data, test_data)
 
     def estimate_gaussian(self, features, predictions):
         means_init = estimate_init_means(features, predictions, num_labels=10)
         cluster_analyzer = GaussianClusterAnalyzer(means_init)
         cluster_analyzer.estimate(features)
         return cluster_analyzer
+    
+    def create_rel_analyzer_for(self, model):
+        return ConformalPredictionBasedReliabilityAnalyzer(model=model,
+                                                           calibration_set=self.mnist_provider.create_cal(),
+                                                           tuning_set=self.mnist_provider.create_tuning(),
+                                                           class_to_idx_mapper=class_to_idx_mapper)
 
     def _load_models(self):
-        return [MNISTTestModel3()]
+        return [MNISTModel(ModelLevel.BEST), MNISTModel(ModelLevel.AVG), MNISTModel(ModelLevel.WORSE)]
     
     def _load_std_metrics(self):
-        pears_corr = PearsonCorrelation(determine_deviation=lambda softmax, true_labels: determine_deviation_softmax(softmax, 
-                                                                                                                     true_labels, 
-                                                                                                                     class_to_idx_mapper=lambda x: x))
         std_metrics = super()._load_std_metrics()
-        std_metrics.append(pears_corr)
+        std_metrics.append(AverageOutputDeviation(determine_deviation=determine_softmax_pos_fun))
         return std_metrics
     
-class MNISTDataset(Dataset):
-    def __init__(self, X, Y) -> None:
-        super().__init__(X, Y)
+class MNISTDatasetProvider:
+    def __init__(self) -> None:
+        (self.x_train, self.y_train), (self.x_test, self.y_test) = keras.datasets.mnist.load_data()
 
-    def create_train():
-        (x_train, y_train), _ = keras.datasets.mnist.load_data()
-        return MNISTDataset(x_train, y_train)
-    
-    def create_less_train():
-        (x_train, y_train), _ = keras.datasets.mnist.load_data()
+        train_cal_split = self._random_splits([50000, 10000])
+        self.train_idxs = train_cal_split == 0
+        self.gaussian_cal_idxs = train_cal_split == 1
 
-        idx = np.array([1] * 100 + [0] * (len(x_train) - 100)) > 0
-        np.random.shuffle(idx)
-        X, Y = x_train[idx,:], y_train[idx]
-        return MNISTDataset(X, Y)
-    
-    def create_test():
-        _, (x_test, y_test) = keras.datasets.mnist.load_data()
-        return MNISTDataset(x_test, y_test)
-        
-    def create_randomly(size=1000):
-        _, (x_test, y_test) = keras.datasets.mnist.load_data()
+        eval_cal_tun_split = self._random_splits([8000, 1000, 1000])
+        self.eval_idxs = eval_cal_tun_split == 0
+        self.cal_idxs = eval_cal_tun_split == 1
+        self.tun_idxs = eval_cal_tun_split == 2
 
-        idx = np.array([1] * size + [0] * (len(x_test) - size)) > 0
-        np.random.shuffle(idx)
-        X, Y = x_test[idx,:], y_test[idx]
-        return MNISTDataset(X, Y)
-    
-    def create_first():
-        _, (x_test, y_test) = keras.datasets.mnist.load_data()
+    def _random_splits(self, splits):
+        idxs = []
+        for i, split in enumerate(splits):
+            idxs = idxs + [i] * split
         
-        idx = range(5000)
-        X, Y = x_test[idx,:], y_test[idx]
-        return MNISTDataset(X, Y)
+        idxs = np.array(idxs)
+        np.random.shuffle(idxs)
+
+        return idxs
+
+    def create_full_train(self):
+        X, Y = self.x_train[self.train_idxs,:], self.y_train[self.train_idxs]
+        return Dataset(X, Y)
     
-    def create_second():
-        _, (x_test, y_test) = keras.datasets.mnist.load_data()
-        
-        idx = range(5000, 10000)
-        X, Y = x_test[idx,:], y_test[idx]
-        return MNISTDataset(X, Y)
+    def create_half_train(self):
+        x_train, y_train = self.x_train[self.train_idxs,:], self.y_train[self.train_idxs]
+        half_train_split = self._random_splits([25000, 25000]) == 0
+        X, Y = x_train[half_train_split,:], y_train[half_train_split]
+        return Dataset(X, Y)
     
-class MNISTTestModel3(Model):
-    def __init__(self, model_file="MNISTTestModel3.keras") -> None:
-        self.name = "MNISTTestModel3"
+    def create_one_percent_train(self):
+        x_train, y_train = self.x_train[self.train_idxs,:], self.y_train[self.train_idxs]
+        one_percent_train_split = self._random_splits([500, 49500]) == 0
+        X, Y = x_train[one_percent_train_split,:], y_train[one_percent_train_split]
+        return Dataset(X, Y)
+    
+    def create_gaussian_cal(self):
+        X, Y = self.x_train[self.gaussian_cal_idxs,:], self.y_train[self.gaussian_cal_idxs]
+        return Dataset(X, Y)
+    
+    def create_cal(self):
+        X, Y = self.x_test[self.cal_idxs,:], self.y_test[self.cal_idxs]
+        return Dataset(X, Y)
+    
+    def create_tuning(self):
+        X, Y = self.x_test[self.tun_idxs,:], self.y_test[self.tun_idxs]
+        return Dataset(X, Y)
+
+    def create_evaluation(self):
+        X, Y = self.x_test[self.eval_idxs,:], self.y_test[self.eval_idxs]
+        return Dataset(X, Y)
+    
+class MNISTModel(Model):
+    def __init__(self, model_level, load_model=True) -> None:
+        self.name = "MNISTModel_{level}".format(level=model_level.value)
+        self.model_file = self.name + ".keras"
         self.num_classes = 10
         self.input_shape = (28, 28, 1)
-        if not model_file==None:
-            self.model = self.load_from(model_file)
+        if load_model:
+            self.model = self.load_from(self.model_file)
             
-            self.feature_extractor = self.load_from(model_file)
+            self.feature_extractor = self.load_from(self.model_file)
             self.feature_extractor.pop()
             self.feature_extractor.pop()
             self.feature_extractor.summary()
@@ -158,7 +182,7 @@ class MNISTTestModel3(Model):
         print("Test loss:", score[0])
         print("Test accuracy:", score[1])
 
-        self.model.save("MNISTTestModel3.keras")
+        self.model.save(self.model_file)
 
     def load_from(self, model_file):
         return keras.saving.load_model(model_file)

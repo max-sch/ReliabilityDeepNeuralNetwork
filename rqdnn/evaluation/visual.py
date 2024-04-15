@@ -4,6 +4,30 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 def histoplot(scores_correct, scores_incorrect, title, show_plot=False):
+    data_frame = _as_data_frame(scores_correct, scores_incorrect)
+    sns.histplot(data_frame, x="Success levels", hue="Types", discrete=True).set(title=title)
+    #plt.xlabel('Categories')
+    #plt.ylabel('Frequency')
+    #plt.title('Histogram of Categorical Values')
+    if show_plot:
+        plt.show()
+
+def boxplot(scores_correct, scores_incorrect, title, show_plot=False):
+    data_frame = _as_data_frame(scores_correct, scores_incorrect)
+    sns.boxplot(data=data_frame, x="Model", y="Success levels", hue="Types").set(title=title)
+
+    if show_plot:
+        plt.show()
+
+def scatterplot(scores, var_compare, title, title_var_compare, show_plot=False):
+    d={"Success levels":scores, f"{title_var_compare}":var_compare}
+    dataframe=pd.DataFrame(data=d)
+    sns.scatterplot(dataframe, x="Success levels", y=f"{title_var_compare}").set(title=title)
+
+    if show_plot:
+        plt.show()
+
+def _as_data_frame(scores_correct, scores_incorrect, model_name="Model"):
     n1 = len(scores_incorrect)
     n2 = len(scores_correct)
     n = n1 + n2 
@@ -20,20 +44,9 @@ def histoplot(scores_correct, scores_incorrect, title, show_plot=False):
     ordered_levels = [str(v) for v in ordered_levels]
 
     all_scores_str = [str(v) for v in all_scores]
-    d={"Success levels":all_scores_str, "Types":types}
+    model = [model_name] * n
+    d={"Success levels":all_scores_str, "Types":types, "Model":model}
     dataframe=pd.DataFrame(data=d)
     dataframe['Success levels'] = pd.Categorical(dataframe['Success levels'], ordered_levels)
-    sns.histplot(dataframe, x="Success levels", hue="Types", discrete=True).set(title=title)
-    #plt.xlabel('Categories')
-    #plt.ylabel('Frequency')
-    #plt.title('Histogram of Categorical Values')
-    if show_plot:
-        plt.show()
-
-def scatterplot(scores, var_compare, title, title_var_compare, show_plot=False):
-    d={"Success levels":scores, f"{title_var_compare}":var_compare}
-    dataframe=pd.DataFrame(data=d)
-    sns.scatterplot(dataframe, x="Success levels", y=f"{title_var_compare}").set(title=title)
-
-    if show_plot:
-        plt.show()
+    
+    return dataframe

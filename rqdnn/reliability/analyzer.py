@@ -54,7 +54,8 @@ class ConformalPredictionBasedReliabilityAnalyzer(ReliabilityAnalyzer):
                 conf_predictor = RegularizedAdaptiveConformalPrediction(model=self.model,
                                                                         calibration_set=self.calibration_set,
                                                                         tuning_data=self.tuning_set,
-                                                                        error_rate=_error_level)
+                                                                        error_rate=_error_level,
+                                                                        class_to_idx_mapper=self.class_to_idx_mapper)
                 self.cached_predictors[_error_level] = conf_predictor
 
             # Filter all inputs that have a singleton prediction set and are not already analyzed
