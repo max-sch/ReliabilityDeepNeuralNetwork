@@ -2,7 +2,7 @@ from dnn.dataset import Dataset
 from dnn.model import Model
 from latentspace.clustering import GaussianClusterAnalyzer, estimate_init_means
 from reliability.analyzer import ConformalPredictionBasedReliabilityAnalyzer
-from evaluation.metrics import AverageReliabilityScores, PearsonCorrelation, AverageOutputDeviation
+from evaluation.metrics import AverageReliabilityScores, AverageOutputDeviation, SoftmaxPositionToReliabilityCorrelation, PearsonCorrelation
 from latentspace.partition_map import DecisionTreePartitioning, KnnPartitioning
 from evaluation.base import Evaluation, ModelLevel
 from commons.ops import determine_deviation_softmax
@@ -70,6 +70,8 @@ class MNISTEvaluation(Evaluation):
     def _load_std_metrics(self):
         std_metrics = super()._load_std_metrics()
         std_metrics.append(AverageOutputDeviation(determine_deviation=determine_softmax_pos_fun))
+        std_metrics.append(SoftmaxPositionToReliabilityCorrelation(determine_deviation=determine_softmax_pos_fun, num_pos=10))
+        std_metrics.append(PearsonCorrelation(determine_deviation=determine_softmax_pos_fun))
         return std_metrics
     
 class MNISTDatasetProvider:

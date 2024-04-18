@@ -27,6 +27,14 @@ def scatterplot(scores, var_compare, title, title_var_compare, show_plot=False):
     if show_plot:
         plt.show()
 
+def barplot(avg_scores, positions, show_plot=False):
+    d={"Avg success levels":avg_scores, "Softmax position":positions}
+    dataframe=pd.DataFrame(data=d)
+    sns.barplot(dataframe, x="Softmax position", y="Avg success levels", hue="Softmax position")
+
+    if show_plot:
+        plt.show()
+
 def _as_data_frame(scores_correct, scores_incorrect, model_name="Model"):
     n1 = len(scores_incorrect)
     n2 = len(scores_correct)

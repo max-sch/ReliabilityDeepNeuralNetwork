@@ -1,7 +1,7 @@
 from scipy import stats
 from commons.ops import calc_avg
 from commons.print import print_result
-from evaluation.visual import scatterplot
+from evaluation.visual import scatterplot, barplot
 
 import numpy as np
 
@@ -96,7 +96,39 @@ class AverageOutputDeviation(Metric):
     
     def visualize(self):
         pass
+
+class SoftmaxPositionToReliabilityCorrelation(Metric):
+    def __init__(self, determine_deviation, num_pos) -> None:
+        super().__init__("Softmax position to reliability correlation")
+        self.determine_deviation = determine_deviation
+        self.num_pos = num_pos
+        self.avg_scores = np.zeros((num_pos))
+
+    def apply(self, result) -> str:
+        self.out_deviations = self.determine_deviation(result.softmax, result.evaluation_set.Y)
+        self.rel_scores = result.rel_scores
+
+        for pos in range(self.num_pos):
+            scores = self.rel_scores[self.out_deviations == pos]
+            self.avg_scores[pos] = calc_avg(scores)
+
+    def print_result(self):
+        print_result(metric=self.name, values=self._to_string())
+
+    def get_report(self):
+        return "{name}: {result}".format(name=self.name, result=self._to_string())
+
+    def is_visualizable(self):
+        return True
     
+    def visualize(self):
+        barplot(avg_scores=self.avg_scores,
+                positions=np.arange(self.num_pos),
+                show_plot=True)
+        
+    def _to_string(self):
+        return ', '.join('({v1},{v2})'.format(v1=i, v2=v) for i,v in enumerate(self.avg_scores))
+
 class PearsonCorrelation(Metric):
     def __init__(self, determine_deviation) -> None:
         super().__init__("Pearson correlation")
