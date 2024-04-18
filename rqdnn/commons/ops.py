@@ -11,20 +11,15 @@ def determine_deviation_softmax(softmax, true_labels, class_to_idx_mapper):
     y : (N,) array_like
         Input array of the true labels.
     '''
-    def create_selection_matrix(pos_encoding, shape):
-        # Creates a matrix of ones and zeros where a positional vector encodes the positions of ones of each row.
-        m = np.zeros(shape, int)
-        m[np.arange(len(pos_encoding)), pos_encoding] = 1
-        return m
-    
-    pos_encoding = np.apply_along_axis(arr=true_labels, 
-                                       func1d=lambda x: class_to_idx_mapper(x),
-                                       axis=0)
-    selection_matrix = create_selection_matrix(pos_encoding, softmax.shape)
-    
-    softmax_ranks = np.argsort(softmax, axis=1)
-    pos_matrix = np.matmul(softmax_ranks, np.transpose(selection_matrix))
-    return np.diag(pos_matrix)
+    idxs = np.apply_along_axis(arr=true_labels, 
+                               func1d=lambda x: class_to_idx_mapper(x),
+                               axis=0)
+    idxs = idxs.reshape((idxs.shape[0], 1))
+
+    softmax_ranks = np.argsort(softmax, axis=1)[:, ::-1]
+    positions = softmax_ranks == idxs
+    idx_matrix = np.array([np.arange(positions.shape[1])] * positions.shape[0])
+    return idx_matrix[positions]
 
 def find_type(collection, type):
     for val in collection:
