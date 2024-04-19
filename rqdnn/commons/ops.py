@@ -1,7 +1,10 @@
 import numpy as np
 
 def calc_avg(vec):
-    return np.matmul(np.transpose(vec), np.ones((len(vec)))) / len(vec)
+    n = len(vec)
+    if n == 0:
+        return 0
+    return np.matmul(np.transpose(vec), np.ones((n))) / n
 
 def determine_deviation_softmax(softmax, true_labels, class_to_idx_mapper):
     '''
