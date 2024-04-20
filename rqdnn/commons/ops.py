@@ -30,3 +30,13 @@ def find_type(collection, type):
             return val
         
     return None
+
+def random_splits(splits):
+    idxs = []
+    for i, split in enumerate(splits):
+        idxs = idxs + [i] * split
+    
+    idxs = np.array(idxs)
+    np.random.shuffle(idxs)
+
+    return idxs

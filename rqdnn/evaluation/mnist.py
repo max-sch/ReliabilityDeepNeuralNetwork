@@ -5,7 +5,7 @@ from reliability.analyzer import ConformalPredictionBasedReliabilityAnalyzer
 from evaluation.metrics import AverageReliabilityScores, AverageOutputDeviation, SoftmaxPositionToReliabilityCorrelation, PearsonCorrelation
 from latentspace.partition_map import DecisionTreePartitioning, KnnPartitioning
 from evaluation.base import Evaluation, ModelLevel
-from commons.ops import determine_deviation_softmax
+from commons.ops import determine_deviation_softmax, random_splits
 
 import numpy as np
 import keras
@@ -49,7 +49,7 @@ class MNISTEvaluation(Evaluation):
 
         train_data = self.mnist_provider.create_one_percent_train()
 
-        model_best = MNISTModel(model_level=ModelLevel.WORSE, load_model=False)
+        model_best = MNISTModel(model_level=ModelLevel.WORST, load_model=False)
         model_best.train_and_save_model(train_data, test_data)
 
     def estimate_gaussian(self, features, predictions):
@@ -65,7 +65,7 @@ class MNISTEvaluation(Evaluation):
                                                            class_to_idx_mapper=class_to_idx_mapper)
 
     def _load_models(self):
-        return [MNISTModel(ModelLevel.BEST), MNISTModel(ModelLevel.AVG), MNISTModel(ModelLevel.WORSE)]
+        return [MNISTModel(ModelLevel.BEST), MNISTModel(ModelLevel.AVG), MNISTModel(ModelLevel.WORST)]
     
     def _load_std_metrics(self):
         std_metrics = super()._load_std_metrics()
@@ -78,24 +78,14 @@ class MNISTDatasetProvider:
     def __init__(self) -> None:
         (self.x_train, self.y_train), (self.x_test, self.y_test) = keras.datasets.mnist.load_data()
 
-        train_cal_split = self._random_splits([50000, 10000])
+        train_cal_split = random_splits([50000, 10000])
         self.train_idxs = train_cal_split == 0
         self.gaussian_cal_idxs = train_cal_split == 1
 
-        eval_cal_tun_split = self._random_splits([8000, 1000, 1000])
+        eval_cal_tun_split = random_splits([8000, 1000, 1000])
         self.eval_idxs = eval_cal_tun_split == 0
         self.cal_idxs = eval_cal_tun_split == 1
         self.tun_idxs = eval_cal_tun_split == 2
-
-    def _random_splits(self, splits):
-        idxs = []
-        for i, split in enumerate(splits):
-            idxs = idxs + [i] * split
-        
-        idxs = np.array(idxs)
-        np.random.shuffle(idxs)
-
-        return idxs
 
     def create_full_train(self):
         X, Y = self.x_train[self.train_idxs,:], self.y_train[self.train_idxs]
@@ -103,13 +93,13 @@ class MNISTDatasetProvider:
     
     def create_half_train(self):
         x_train, y_train = self.x_train[self.train_idxs,:], self.y_train[self.train_idxs]
-        half_train_split = self._random_splits([25000, 25000]) == 0
+        half_train_split = random_splits([25000, 25000]) == 0
         X, Y = x_train[half_train_split,:], y_train[half_train_split]
         return Dataset(X, Y)
     
     def create_one_percent_train(self):
         x_train, y_train = self.x_train[self.train_idxs,:], self.y_train[self.train_idxs]
-        one_percent_train_split = self._random_splits([500, 49500]) == 0
+        one_percent_train_split = random_splits([500, 49500]) == 0
         X, Y = x_train[one_percent_train_split,:], y_train[one_percent_train_split]
         return Dataset(X, Y)
     
