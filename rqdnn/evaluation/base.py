@@ -60,7 +60,7 @@ class EvaluationReport:
         result_file.close()
 
 class ModelLevel(Enum):
-    WORSE = "Worse"
+    WORST = "Worst"
     AVG = "Avg"
     BEST = "Best"
 

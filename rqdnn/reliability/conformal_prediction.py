@@ -109,7 +109,9 @@ class RegularizedAdaptiveConformalPrediction(ConformalPrediction):
         reg_vec = np.array(self.k_reg*[0,] + (softmax.shape[1]-self.k_reg)*[self.l_reg,])[None,:]
         reg_softmax = desc_ordered_softmax + reg_vec
 
-        L = np.where(desc_ordered_idx == labels[:,None])[1]
+        if len(labels.shape) == 1:
+            labels = labels[:,None]
+        L = np.where(desc_ordered_idx == labels)[1]
 
         return reg_softmax.cumsum(axis=1)[np.arange(n), L] - np.random.rand(n) * reg_softmax[np.arange(n), L]
     

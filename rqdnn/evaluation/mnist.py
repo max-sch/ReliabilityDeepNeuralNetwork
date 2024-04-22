@@ -39,18 +39,18 @@ class MNISTEvaluation(Evaluation):
         train_data = self.mnist_provider.create_full_train()
         test_data = self.mnist_provider.create_evaluation()
 
-        model_best = MNISTModel(model_level=ModelLevel.BEST, load_model=False)
-        model_best.train_and_save_model(train_data, test_data)
+        model = MNISTModel(model_level=ModelLevel.BEST, load_model=False)
+        model.train_and_save_model(train_data, test_data)
 
         train_data = self.mnist_provider.create_half_train()
 
-        model_best = MNISTModel(model_level=ModelLevel.AVG, load_model=False)
-        model_best.train_and_save_model(train_data, test_data)
+        model = MNISTModel(model_level=ModelLevel.AVG, load_model=False)
+        model.train_and_save_model(train_data, test_data)
 
         train_data = self.mnist_provider.create_one_percent_train()
 
-        model_best = MNISTModel(model_level=ModelLevel.WORST, load_model=False)
-        model_best.train_and_save_model(train_data, test_data)
+        model = MNISTModel(model_level=ModelLevel.WORST, load_model=False)
+        model.train_and_save_model(train_data, test_data)
 
     def estimate_gaussian(self, features, predictions):
         means_init = estimate_init_means(features, predictions, num_labels=10)
