@@ -103,6 +103,7 @@ class SoftmaxPositionToReliabilityCorrelation(Metric):
         self.determine_deviation = determine_deviation
         self.num_pos = num_pos
         self.avg_scores = np.zeros((num_pos))
+        self.num_samples_per_pos = np.zeros((num_pos))
 
     def apply(self, result) -> str:
         self.out_deviations = self.determine_deviation(result.softmax, result.evaluation_set.Y)
@@ -111,6 +112,7 @@ class SoftmaxPositionToReliabilityCorrelation(Metric):
         for pos in range(self.num_pos):
             scores = self.rel_scores[self.out_deviations == pos]
             self.avg_scores[pos] = calc_avg(scores)
+            self.num_samples_per_pos[pos] = len(scores)
 
     def print_result(self):
         print_result(metric=self.name, values=self._to_string())
@@ -127,7 +129,8 @@ class SoftmaxPositionToReliabilityCorrelation(Metric):
                 show_plot=True)
         
     def _to_string(self):
-        return ', '.join('({v1},{v2})'.format(v1=i, v2=v) for i,v in enumerate(self.avg_scores))
+        str_vals = [(pos,self.avg_scores[pos],self.num_samples_per_pos[pos]) for pos in range(self.num_pos)]
+        return ','.join('(pos: {}, score: {}, #samples: {})'.format(val[0], val[1], val[2]) for val in str_vals)
 
 class PearsonCorrelation(Metric):
     def __init__(self, determine_deviation) -> None:

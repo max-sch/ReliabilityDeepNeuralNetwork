@@ -80,30 +80,23 @@ class RegularizedAdaptiveConformalPrediction(ConformalPrediction):
         super().__init__(model, calibration_set, error_rate, class_to_idx_mapper)
 
     def _calc_k_reg(self, tuning_data, model, error_rate):
-        L = []
-        for x,label in tuning_data:
-            softmax = model.get_confidences(x)
-            for i,y in enumerate(sort_descending(softmax)): 
-                if y == label:
-                    L.append(i + 1)
-        
-        n = tuning_data.size()
-        q_level = np.ceil((n+1)*(1-error_rate))/n
+        labels = tuning_data.Y
+        labels = labels.reshape((len(labels), 1))
 
-        return np.quantile(L, q_level, interpolation='higher')
+        softmax = model.softmax(tuning_data.X)
+        softmax_ranks = np.argsort(softmax, axis=1)[:, ::-1]
+        positions = softmax_ranks == labels
+        idx_matrix = np.array([np.arange(positions.shape[1])] * positions.shape[0])
+        L = idx_matrix[positions]
+        
+        return np.quantile(L, 1-error_rate, interpolation='higher') + 1
 
     def _calc_scores(self, calibration_set):
-        n = calibration_set.size()
-        m = self.model.get_output_shape()
-        softmax = np.zeros((n,m))
-        
-        for i, (x,_) in enumerate(calibration_set): 
-            for c,p in self.model.get_confidences(x).items():
-                softmax[i, self.class_to_idx_mapper(c)] = p
-        
         labels = calibration_set.Y
-        
-        desc_ordered_idx = softmax.argsort(1)[:,::-1] 
+        softmax = self.model.softmax(calibration_set.X)
+        softmax = np.array(softmax)
+
+        desc_ordered_idx = np.argsort(softmax, axis=1)[:,::-1]
         desc_ordered_softmax = np.take_along_axis(softmax, desc_ordered_idx, axis=1)
 
         reg_vec = np.array(self.k_reg*[0,] + (softmax.shape[1]-self.k_reg)*[self.l_reg,])[None,:]
@@ -113,6 +106,7 @@ class RegularizedAdaptiveConformalPrediction(ConformalPrediction):
             labels = labels[:,None]
         L = np.where(desc_ordered_idx == labels)[1]
 
+        n = calibration_set.size()
         return reg_softmax.cumsum(axis=1)[np.arange(n), L] - np.random.rand(n) * reg_softmax[np.arange(n), L]
     
     def calc_prediction_set_for_confidences(self, confidences):
