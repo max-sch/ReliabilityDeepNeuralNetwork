@@ -1,18 +1,24 @@
 from sklearn.mixture import GaussianMixture
+from commons.print import print_info
 
 import numpy as np
 
 def estimate_init_means(features, predictions, num_labels):
     num_feature_dims = len(features[0])
-    means_init = np.zeros((num_labels, num_feature_dims))
+    means_init = []
     for i in range(num_labels):
         label_idxs = np.arange(len(features))[np.array(predictions) == i]
         equal_labeled_features = np.array(features)[label_idxs,:]
-        num_labels = len(equal_labeled_features)
-        acc_features = np.matmul(np.transpose(equal_labeled_features), np.ones((num_labels, 1))).reshape((num_feature_dims))
-        means_init[i,:] = acc_features / num_labels
 
-    return means_init
+        num_labels = len(equal_labeled_features)
+        if num_labels == 0:
+            print_info("There are no predicted labels for class {}".format(str(i)))
+            continue
+
+        acc_features = np.matmul(np.transpose(equal_labeled_features), np.ones((num_labels, 1))).reshape((num_feature_dims))
+        means_init.append(acc_features / num_labels)
+
+    return np.array(means_init)
 
 class GaussianClusterAnalyzer:
     def __init__(self, means_init) -> None:

@@ -8,5 +8,8 @@ def print_end():
 def print_progress(message):
     print(message.center(70, '-'))
 
+def print_info(message):
+    print("INFO: {message}".format(message=message))
+
 def print_result(metric, values):
     print("{metric}: {values}".format(metric=metric, values=values))
