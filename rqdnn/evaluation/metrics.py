@@ -125,13 +125,17 @@ class SoftmaxPositionToReliabilityCorrelation(Metric):
     
     def visualize(self):
         avg_scores = []
+        num_samples = []
         for pos in range(self.num_pos):
-            if self.num_samples_per_pos[pos] >= 50:
+            samples = self.num_samples_per_pos[pos]
+            if samples >= 50:
                 avg_scores.append(self.avg_scores[pos])
+                num_samples.append(int(samples))
             else:
                 avg_scores.append(0)
+                num_samples.append(0)
 
-        barplot(avg_scores, positions=range(self.num_pos), show_plot=True)
+        barplot(avg_scores, range(self.num_pos), num_samples, show_plot=True)
         
     def _to_string(self):
         str_vals = [(pos,self.avg_scores[pos],self.num_samples_per_pos[pos]) for pos in range(self.num_pos)]

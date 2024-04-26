@@ -6,9 +6,7 @@ import matplotlib.pyplot as plt
 def histoplot(scores_correct, scores_incorrect, title, show_plot=False):
     data_frame = _as_data_frame(scores_correct, scores_incorrect)
     sns.histplot(data_frame, x="Success levels", hue="Types", discrete=True).set(title=title)
-    #plt.xlabel('Categories')
-    #plt.ylabel('Frequency')
-    #plt.title('Histogram of Categorical Values')
+
     if show_plot:
         plt.show()
 
@@ -27,10 +25,14 @@ def scatterplot(scores, var_compare, title, title_var_compare, show_plot=False):
     if show_plot:
         plt.show()
 
-def barplot(avg_scores, positions, show_plot=False):
-    d={"Avg success levels":avg_scores, "Softmax position":positions}
+def barplot(avg_scores, positions, num_samples, show_plot=False):
+    d={"Avg success levels":avg_scores, "Softmax position":positions, "Num samples":num_samples}
     dataframe=pd.DataFrame(data=d)
-    sns.barplot(dataframe, x="Softmax position", y="Avg success levels", hue="Softmax position")
+    ax = sns.barplot(dataframe, x="Softmax position", y="Avg success levels", hue="Softmax position", legend=None)
+    for i, v in enumerate(avg_scores):
+        samples = num_samples[i]
+        if samples != 0:
+            ax.text(i, v + 0.01, str(samples), ha='center', color='black')
 
     if show_plot:
         plt.show()
