@@ -22,46 +22,8 @@ class ConformalPrediction:
         '''An internal function for calculating the scores.'''
         raise NotImplementedError
 
-    def calc_prediction_set(self, x):
-        '''Calulates the prediction set for input x'''
-        return self.calc_prediction_set_for_confidences(self.model.get_confidences(x))
-    
-    def calc_prediction_set_for_confidences(self, confidences):
-        '''Calculates the prediction set for confidences, e.g., the softmax result'''
-    
-class DefaultConformalPrediction(ConformalPrediction):
-    def __init__(self, model, calibration_set, error_rate=0.1, class_to_idx_mapper=lambda x:x) -> None:
-        super().__init__(model, calibration_set, error_rate, class_to_idx_mapper)
-
-    def _calc_scores(self, calibration_set):
-        return [1 - self.model.confidence(x,y) for x,y in iter(calibration_set)]
-    
-    def calc_prediction_set_for_confidences(self, confidences):
-        return {y for y,confidence in self.model.get_confidences(x).items() if confidence >= 1-self.qhat}
-    
-class AdaptiveConformalPrediction(ConformalPrediction):
-    def __init__(self, model, calibration_set, error_rate=0.1, class_to_idx_mapper=lambda x:x) -> None:
-        super().__init__(model, calibration_set, error_rate, class_to_idx_mapper)
-
-    def _calc_scores(self, calibration_set):
-        scores = []
-        for x,label in calibration_set:
-            softmax = self.model.get_confidences(x)
-            score = sum(softmax[y] for y in sort_descending(softmax) if y == label)
-            scores.append(score)
-        return scores
-    
-    def calc_prediction_set_for_confidences(self, confidences):
-        prediction_set = set()
-        acc_scores = 0
-        for y in sort_descending(confidences):
-            prediction_set.add(y)
-
-            acc_scores += confidences[y]
-            if acc_scores > self.qhat:
-                break            
-
-        return prediction_set
+    def calc_prediction_set_size(self, softmax):
+        '''Calculates the prediction set for softmax outputs'''
     
 class RegularizedAdaptiveConformalPrediction(ConformalPrediction):
     def __init__(self, 
@@ -109,13 +71,9 @@ class RegularizedAdaptiveConformalPrediction(ConformalPrediction):
         n = calibration_set.size()
         return reg_softmax.cumsum(axis=1)[np.arange(n), L] - np.random.rand(n) * reg_softmax[np.arange(n), L]
     
-    def calc_prediction_set_for_confidences(self, confidences):
-        softmax = np.zeros((1, len(confidences)))
-
-        for c,p in confidences.items():
-            softmax[0, self.class_to_idx_mapper(c)] = p
-        
-        desc_ordered_idx = softmax.argsort(1)[:,::-1]
+    def calc_prediction_set_size(self, softmax):
+        desc_ordered_idx = np.argsort(softmax, axis=1)[:,::-1]
+        softmax = np.array(softmax)
         desc_ordered_softmax = np.take_along_axis(softmax, desc_ordered_idx, axis=1)
 
         reg_vec = np.array(self.k_reg*[0,] + (softmax.shape[1]-self.k_reg)*[self.l_reg,])[None,:]
@@ -126,5 +84,5 @@ class RegularizedAdaptiveConformalPrediction(ConformalPrediction):
         if self.disallow_zero_sets: 
             indicators[:, 0] = True
 
-        prediction_set = np.take_along_axis(indicators, desc_ordered_idx.argsort(axis=1), axis=1)
-        return softmax[prediction_set]
+        prediction_sets = np.take_along_axis(indicators, desc_ordered_idx.argsort(axis=1), axis=1)
+        return np.sum(prediction_sets, axis=1)

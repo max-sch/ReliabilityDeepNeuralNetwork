@@ -71,7 +71,8 @@ class Evaluation:
                  evaluation_set,
                  partition_algs, 
                  metrics,
-                 include_softmax=False):
+                 include_softmax=False,
+                 disable_partitioning=True):
         for model in models:
             self.report = EvaluationReport(model.name)
 
@@ -80,8 +81,8 @@ class Evaluation:
 
             rel_analyzer = self.create_rel_analyzer_for(model)
 
-            predictions = model.predict_all(evaluation_set.X)
-            features = model.project_all(evaluation_set.X)
+            predictions = model.predict(evaluation_set.X)
+            features = model.project(evaluation_set.X)
             rel_scores = calc_rel_scores(features, rel_analyzer)
             softmax = model.softmax(evaluation_set.X) if include_softmax else None
             diffs = predictions - evaluation_set.Y
@@ -104,8 +105,8 @@ class Evaluation:
                     title="Calculated reliability scores (correct and incorrect)",
                     show_plot=True)
 
-            predictions = model.predict_all(gaussian_cal_set.X)
-            features = model.project_all(gaussian_cal_set.X)
+            predictions = model.predict(gaussian_cal_set.X)
+            features = model.project(gaussian_cal_set.X)
             gaussian_mixture = self.estimate_gaussian(features, predictions)
 
             ls_analyzer = ReliabilitySpecificManifoldAnalyzer(model=model, 
@@ -114,26 +115,27 @@ class Evaluation:
             )
             ls_analyzer.sample(gaussian_mixture)
 
-            for partition_alg in partition_algs:
-                self._print_and_report("Estimated reliability scores based on {approach}".format(approach=partition_alg.name))
+            if not disable_partitioning:
+                for partition_alg in partition_algs:
+                    self._print_and_report("Estimated reliability scores based on {approach}".format(approach=partition_alg.name))
 
-                partition_map = ls_analyzer.analyze(partition_alg)
-                
-                estimated_rel_scores = partition_map.calc_scores(result.features)
-                result = EvaluationResult(correct_idxs=result.correct_idxs,
-                                          incorrect_idxs=result.incorrect_idxs,
-                                          evaluation_set=result.evaluation_set,
-                                          features=result.features,
-                                          rel_scores=estimated_rel_scores,
-                                          softmax=result.softmax
-                )
+                    partition_map = ls_analyzer.analyze(partition_alg)
+                    
+                    estimated_rel_scores = partition_map.calc_scores(result.features)
+                    result = EvaluationResult(correct_idxs=result.correct_idxs,
+                                            incorrect_idxs=result.incorrect_idxs,
+                                            evaluation_set=result.evaluation_set,
+                                            features=result.features,
+                                            rel_scores=estimated_rel_scores,
+                                            softmax=result.softmax
+                    )
 
-                histoplot(scores_correct=result.get_correct_scores(), 
-                              scores_incorrect=result.get_incorrect_scores(), 
-                              title="Reliability score distribution based on {approach}".format(approach=partition_alg.name),
-                              show_plot=True)
+                    histoplot(scores_correct=result.get_correct_scores(), 
+                                scores_incorrect=result.get_incorrect_scores(), 
+                                title="Reliability score distribution based on {approach}".format(approach=partition_alg.name),
+                                show_plot=True)
 
-                self._evaluate_and_report_metrics(metrics, result)
+                    self._evaluate_and_report_metrics(metrics, result)
 
             self.report.save()
             print_end()
@@ -164,5 +166,5 @@ class Evaluation:
     
 
 def calc_rel_scores(features, rel_analyzer):
-        result = rel_analyzer.analyze_feature_space(Dataset(X=features, Y=np.zeros((len(features)))))
+        result = rel_analyzer.analyze(Dataset(X=features, Y=np.zeros((len(features)))))
         return result.reliability_scores

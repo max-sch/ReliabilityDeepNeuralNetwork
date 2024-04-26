@@ -37,7 +37,7 @@ class ConformalPredictionBasedReliabilityAnalyzer(ReliabilityAnalyzer):
         self.cached_predictors = {}
         self.class_to_idx_mapper=class_to_idx_mapper
     
-    def analyze_feature_space(self, dataset):
+    def analyze(self, dataset):
         placeholder = -1
         lower_success_bounds = np.ones((dataset.size())) * placeholder
 
@@ -58,13 +58,11 @@ class ConformalPredictionBasedReliabilityAnalyzer(ReliabilityAnalyzer):
                                                                         class_to_idx_mapper=self.class_to_idx_mapper)
                 self.cached_predictors[_error_level] = conf_predictor
 
-            # Filter all inputs that have a singleton prediction set and are not already analyzed
-            def has_singleton_pred_set(x) -> bool:
-                softmax = self.model.get_confidences_for_feature(x.reshape((1, len(x))))
-                pred_set = conf_predictor.calc_prediction_set_for_confidences(softmax)
-                return len(pred_set) == 1
+            # Calculation of the indices of the inputs (to be analyzed) that have a single prediction set
             X_to_analyze = dataset.X[inputs_to_analyze]
-            singletons = np.apply_along_axis(func1d=lambda x: has_singleton_pred_set(x), arr=X_to_analyze, axis=1)
+            softmax = self.model.softmax_for_features(X_to_analyze)
+            prediction_set_sizes = conf_predictor.calc_prediction_set_size(softmax)
+            singletons = prediction_set_sizes == 1
             
             # Set success level of those inputs which prediction set is a singleton
             analyzed_idxs = np.arange(dataset.size(), dtype=int)[inputs_to_analyze] 

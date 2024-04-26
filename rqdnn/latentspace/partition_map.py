@@ -3,11 +3,10 @@ from sklearn.neighbors import KNeighborsClassifier
 
 import numpy as np
 
-num_samples_per_iteration = 10000
+num_samples_per_iteration = 20000
 
 class ManifoldPartitionMap:
-    def __init__(self, model, partition_alg) -> None:
-        self.model = model
+    def __init__(self, partition_alg) -> None:
         self.score_map = {}
         self.partition_alg = partition_alg
 

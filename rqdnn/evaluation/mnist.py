@@ -178,17 +178,8 @@ class MNISTModel(Model):
 
     def load_from(self, model_file):
         return keras.saving.load_model(model_file)
-
-    def get_confidences(self, x) -> dict:
-        x = self._prepare_input(x)
-        return {class_idx: float(probability) for class_idx, probability in enumerate(self.model(x)[0])}
-
-    def predict(self, x):
-        x = self._prepare_input(x)
-        softmax_predictions = self.model(x)
-        return int(np.argmax(softmax_predictions, axis=1))
     
-    def predict_all(self, X):
+    def predict(self, X):
         softmax_predictions = self.softmax(X)
         return np.argmax(softmax_predictions, axis=1)
     
@@ -196,25 +187,13 @@ class MNISTModel(Model):
         X_prep = self._prepare_x_data(X)
         return self.model(X_prep)
     
-    def get_confidences_for_feature(self, feature) -> dict:
+    def softmax_for_features(self, features):
         softmax = self.model.layers[-1]
-        softmax_predictions = softmax(feature)
-        test = {class_idx: float(probability) for class_idx, probability in enumerate(softmax_predictions[0])}
-        return test
+        return softmax(features)
     
-    def confidence(self, x, y): 
-        return self.get_confidences(x)[y]
-
-    def project(self, x):
-        x = self._prepare_input(x)
-        return [float(element) for element in self.feature_extractor(x)[0]]
-    
-    def project_all(self, X):
+    def project(self, X):
         X_prep = self._prepare_x_data(X)
         return self.feature_extractor(X_prep)
-    
-    def _prepare_input(self, X):
-        return self._prepare_x_data(X).reshape(1, self.input_shape[0], self.input_shape[1], self.input_shape[2])
     
     def _prepare_x_data(self, X):
         # Scale images to the [0, 1] range

@@ -50,7 +50,7 @@ class CIFAR10Evaluation(Evaluation):
         model = CFIR10Model(model_level=ModelLevel.AVG, load_model=False)
         model.train_and_save_model(train_data, test_data)
 
-        train_data = self.mnist_provider.create_one_percent_train()
+        train_data = self.mnist_provider.create_ten_percent_train()
 
         model = CFIR10Model(model_level=ModelLevel.WORST, load_model=False)
         model.train_and_save_model(train_data, test_data)
@@ -68,8 +68,7 @@ class CIFAR10Evaluation(Evaluation):
                                                            class_to_idx_mapper=class_to_idx_mapper)
 
     def _load_models(self):
-        #return [CFIR10Model(ModelLevel.BEST), CFIR10Model(ModelLevel.AVG), CFIR10Model(ModelLevel.WORST)]
-        return [CFIR10Model(ModelLevel.WORST)]
+        return [CFIR10Model(ModelLevel.BEST), CFIR10Model(ModelLevel.AVG), CFIR10Model(ModelLevel.WORST)]
     
     def _load_std_metrics(self):
         std_metrics = super()._load_std_metrics()
@@ -101,10 +100,10 @@ class CFIR10DatasetProvider:
         X, Y = x_train[half_train_split,:], y_train[half_train_split]
         return Dataset(X, Y)
     
-    def create_one_percent_train(self):
+    def create_ten_percent_train(self):
         x_train, y_train = self.x_train[self.train_idxs,:], self.y_train[self.train_idxs][:,0]
-        one_percent_train_split = random_splits([400, 39600]) == 0
-        X, Y = x_train[one_percent_train_split,:], y_train[one_percent_train_split]
+        ten_percent_train_split = random_splits([4000, 36000]) == 0
+        X, Y = x_train[ten_percent_train_split,:], y_train[ten_percent_train_split]
         return Dataset(X, Y)
     
     def create_gaussian_cal(self):
@@ -198,17 +197,8 @@ class CFIR10Model(Model):
 
     def load_from(self, model_file):
         return keras.saving.load_model(model_file)
-
-    def get_confidences(self, x) -> dict:
-        x = self._prepare_input(x)
-        return {class_idx: float(probability) for class_idx, probability in enumerate(self.model(x)[0])}
-
-    def predict(self, x):
-        x = self._prepare_input(x)
-        softmax_predictions = self.model(x)
-        return int(np.argmax(softmax_predictions, axis=1))
     
-    def predict_all(self, X):
+    def predict(self, X):
         softmax_predictions = self.softmax(X)
         return np.argmax(softmax_predictions, axis=1)
     
@@ -216,32 +206,18 @@ class CFIR10Model(Model):
         X_prep = self._prepare_x_data(X)
         return self.model(X_prep)
     
-    def get_confidences_for_feature(self, feature) -> dict:
+    def softmax_for_features(self, features):
         softmax = self.model.layers[-1]
-        softmax_predictions = softmax(feature)
-        test = {class_idx: float(probability) for class_idx, probability in enumerate(softmax_predictions[0])}
-        return test
-    
-    def confidence(self, x, y): 
-        return self.get_confidences(x)[y]
+        return softmax(features)
 
-    def project(self, x):
-        x = self._prepare_input(x)
-        return [float(element) for element in self.feature_extractor(x)[0]]
-    
-    def project_all(self, X):
+    def project(self, X):
         X_prep = self._prepare_x_data(X)
         return self.feature_extractor(X_prep)
-    
-    def _prepare_input(self, X):
-        return self._prepare_x_data(X).reshape(1, self.input_shape[0], self.input_shape[1], self.input_shape[2])
     
     def _prepare_x_data(self, X):
         # Scale images to the [0, 1] range
         X_prep = X.astype("float32") / 255
         return X_prep
-        # Make sure images have shape (28, 28, 1)
-        #return np.expand_dims(X_prep, -1)
 
     def _prepare_y_data(self, Y):
         return keras.utils.to_categorical(Y, self.num_classes)
