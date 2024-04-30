@@ -21,8 +21,7 @@ class ReliabilitySpecificManifoldAnalyzer:
         self.feature_samples = result.X
         self.rel_scores = result.reliability_scores
         
-        convergence_criterion = DeltaReached(result.success())
-        #convergence_criterion = MaxRunsAreReached(success_prob=result.success(), max_runs=10)
+        convergence_criterion = ThresholdConvergence(result.success())
         while True:
             new_feature_samples = gaussian_mixture.sample_features(num_samples_per_iteration)
 
@@ -75,8 +74,8 @@ class MaxRunsAreReached(ConvergenceCriterion):
     def check_criterion(self) -> bool:
         return True if self.max_runs == self.num_runs else False
     
-class DeltaReached(ConvergenceCriterion):
-    def __init__(self, success_prob, threshold=0.00001) -> None:
+class ThresholdConvergence(ConvergenceCriterion):
+    def __init__(self, success_prob, threshold=0.0001) -> None:
         super().__init__(success_prob)
         self.threshold = threshold
 
