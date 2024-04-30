@@ -25,6 +25,14 @@ def scatterplot(scores, var_compare, title, title_var_compare, show_plot=False):
     if show_plot:
         plt.show()
 
+def lineplot(num_runs, scores, show_plot=True):
+    d={"Lower reliability bounds":scores, "Num runs": num_runs}
+    sns.lineplot(pd.DataFrame(data=d), x="Num runs", y="Lower reliability bounds")
+
+    if show_plot:
+        plt.show()
+
+
 def barplot(avg_scores, positions, num_samples, show_plot=False):
     d={"Avg success levels":avg_scores, "Softmax position":positions, "Num samples":num_samples}
     dataframe=pd.DataFrame(data=d)

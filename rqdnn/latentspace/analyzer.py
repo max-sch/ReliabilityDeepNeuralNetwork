@@ -1,6 +1,8 @@
 from latentspace.partition_map import ManifoldPartitionMap, num_samples_per_iteration
 from dnn.dataset import Dataset
 from commons.ops import calc_avg
+from evaluation.visual import lineplot
+
 import numpy as np
 
 class ReliabilitySpecificManifoldAnalyzer:
@@ -18,7 +20,10 @@ class ReliabilitySpecificManifoldAnalyzer:
 
         self.feature_samples = result.X
         self.rel_scores = result.reliability_scores
-        for _ in range(num_runs):
+        
+        convergence_criterion = DeltaReached(result.success())
+        #convergence_criterion = MaxRunsAreReached(success_prob=result.success(), max_runs=10)
+        while True:
             new_feature_samples = gaussian_mixture.sample_features(num_samples_per_iteration)
 
             dataset = Dataset(X=new_feature_samples, Y=np.zeros(num_samples_per_iteration))
@@ -27,7 +32,13 @@ class ReliabilitySpecificManifoldAnalyzer:
             self.feature_samples = np.concatenate((self.feature_samples, new_feature_samples), axis=0)
             self.rel_scores = np.concatenate((self.rel_scores, result.reliability_scores), axis=0)
             
-            self._print_progress(calc_avg(self.rel_scores))
+            success = calc_avg(self.rel_scores)
+            self._print_progress(success)
+
+            if convergence_criterion.is_satisfied(success):
+                break
+
+        convergence_criterion.print_convergence()
     
     def analyze(self, partition_alg):
         partition_map = ManifoldPartitionMap(partition_alg)
@@ -37,3 +48,39 @@ class ReliabilitySpecificManifoldAnalyzer:
 
     def _print_progress(self, success):
         print("Model: {name}, Success probability: {success}".format(name=self.model.name, success=success))
+
+class ConvergenceCriterion:
+    def __init__(self, success_prob) -> None:
+        self.num_runs = 0
+        self.success_probs = [success_prob]
+
+    def is_satisfied(self, current):
+        self.success_probs.append(current)
+        self.num_runs += 1
+
+        return self.check_criterion()
+    
+    def check_criterion(self) -> bool:
+        '''This method evaluates whether the criterion is met'''
+        raise NotImplementedError
+    
+    def print_convergence(self):
+        lineplot(num_runs=[*range(self.num_runs + 1)], scores=self.success_probs)
+        
+class MaxRunsAreReached(ConvergenceCriterion):
+    def __init__(self, success_prob, max_runs) -> None:
+        super().__init__(success_prob)
+        self.max_runs = max_runs        
+
+    def check_criterion(self) -> bool:
+        return True if self.max_runs == self.num_runs else False
+    
+class DeltaReached(ConvergenceCriterion):
+    def __init__(self, success_prob, threshold=0.00001) -> None:
+        super().__init__(success_prob)
+        self.threshold = threshold
+
+    def check_criterion(self) -> bool:
+        n = len(self.success_probs) - 1
+        diff = abs(self.success_probs[n] - self.success_probs[n-1])
+        return diff <= self.threshold
