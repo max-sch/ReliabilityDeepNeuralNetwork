@@ -147,13 +147,11 @@ class PearsonCorrelation(Metric):
         self.determine_deviation = determine_deviation
 
     def apply(self, result):
-        softmax_incorrect = result.softmax[result.incorrect_idxs]
-        labels = result.evaluation_set.Y[result.incorrect_idxs]
-        self.output_deviations = self.determine_deviation(softmax_incorrect, labels)
+        labels = result.evaluation_set.Y
+        self.output_deviations = self.determine_deviation(result.softmax, labels)
+        self.scores = result.rel_scores
 
-        self.scores_incorrect = result.get_incorrect_scores()
-
-        self.pears_coef = stats.pearsonr(self.output_deviations, self.scores_incorrect)
+        self.pears_coef = stats.pearsonr(self.output_deviations, self.scores)
         
     def print_result(self):
         print_result(metric=self.name, values=self._to_string())
@@ -165,7 +163,7 @@ class PearsonCorrelation(Metric):
         return True
     
     def visualize(self):
-        scatterplot(scores=self.scores_incorrect,
+        scatterplot(scores=self.scores,
                     var_compare=self.output_deviations,
                     title="Correlation of incorrect scores with output deviations",
                     title_var_compare="Output deviations",
