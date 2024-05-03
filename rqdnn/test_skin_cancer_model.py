@@ -7,7 +7,7 @@ from evaluation.skin_cancer import SkinCancerEvaluation
 
 
 if __name__ == '__main__':
-    model = SkinCancerModel(1)
+    model = SkinCancerModel(100)
 
     # Create Test-Data
     x1 = Image.open("../test.jpg")
@@ -52,7 +52,8 @@ if __name__ == '__main__':
     print(project_all)
 
     # Test Get Confidences for Feature
-    feature = np.zeros((1, 6144))
+    #feature = np.zeros((1, 6144))
+    feature = np.zeros((1, 128))
     get_confidences_for_feature = model.get_confidences_for_feature(feature)
     print("CONFIDENCE FEATURE")
     print(get_confidences_for_feature)

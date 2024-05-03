@@ -94,7 +94,7 @@ class Evaluation:
                                       softmax=softmax
             )
 
-            self._evaluate_and_report_metrics(self._load_std_metrics(), result)
+            self._evaluate_and_report_metrics(self.load_std_metrics(), result)
 
             histoplot(scores_correct=result.get_correct_scores(), 
                       scores_incorrect=result.get_incorrect_scores(), 
@@ -148,7 +148,7 @@ class Evaluation:
         '''Creates a reliability analyzer for a given DNN model.'''
         raise NotImplementedError
     
-    def _load_std_metrics(self):
+    def load_std_metrics(self):
         return [TrueSuccessProbability(), AverageReliabilityScores()]
     
     def _evaluate_and_report_metrics(self, metrics, result):
