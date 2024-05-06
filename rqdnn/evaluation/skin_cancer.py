@@ -4,10 +4,12 @@ from dnn.model import Model as Model2
 from dnn.dataset import Dataset
 import tensorflow as tf
 import pandas as pd
+import cv2
 import numpy as np
 import math
 from tensorflow.keras import Model
 from tensorflow.keras.layers import concatenate,Dense, Conv2D, MaxPooling2D, Flatten,Input,Activation,add,AveragePooling2D,Dropout
+from tensorflow.keras.preprocessing import image
 from PIL import Image
 from reliability.analyzer import ConformalPredictionBasedReliabilityAnalyzer
 from evaluation.metrics import AverageReliabilityScores, AverageOutputDeviation, SoftmaxPositionToReliabilityCorrelation, PearsonCorrelation
@@ -65,49 +67,50 @@ class SkinCancerEvaluation(Evaluation):
     
 class SkinCancerDatasetProvider:
     def __init__(self) -> None:
-        (self.x_test, self.y_test) = self._load_data("/evaluationData/", "/evaluationData/ISIC2018_Task3_Test_Images/ISIC2018_Task3_Test_Images/" )
-        number_of_test_data = self.y_test.shape[0]
-        eval_gau_cal_tun_split = random_splits([math.floor(number_of_test_data * 0.7), math.floor(number_of_test_data * 0.1), math.floor(number_of_test_data * 0.1), math.floor(number_of_test_data * 0.1)])
-
-        self.eval_idxs = [ i for i, x in enumerate(eval_gau_cal_tun_split == 0) if x]
-        self.cal_idxs = [ i for i, x in enumerate(eval_gau_cal_tun_split == 1) if x]
-        self.tun_idxs = [ i for i, x in enumerate(eval_gau_cal_tun_split == 2) if x]
-        self.gaussian_cal_idxs = [ i for i, x in enumerate(eval_gau_cal_tun_split == 3) if x]
+        (self.x_test, self.y_test) = self._load_data("/evaluationData/ISIC2018_Task3_Test_GroundTruth.csv", "/evaluationData/ISIC2018_Task3_Test_Images/ISIC2018_Task3_Test_Images/" )
+        (self.x_cal_tun, self.y_cal_tun) = self._load_data("/evaluationData/HAM10000_metadata_cal_tun", "/AdditionalEvaluationData/" )
+        (self.x_gaussian, self.y_gaussian) = self._load_data("/evaluationData/HAM10000_metadata_gaussian", "/AdditionalEvaluationData/" )
+        number_of_cal_tun_data = self.y_cal_tun.shape[0]
+        cal_tun_split = random_splits([math.floor(number_of_cal_tun_data * 0.5), math.floor(number_of_cal_tun_data * 0.5)])
+        self.cal_idxs = [ i for i, x in enumerate(cal_tun_split == 0) if x]
+        self.tun_idxs = [ i for i, x in enumerate(cal_tun_split == 1) if x]
     
     def create_gaussian_cal(self):
-        X, Y = self.x_test[self.gaussian_cal_idxs,:], self.y_test[self.gaussian_cal_idxs]
-        return Dataset(X,Y)
+        # X, Y = self.x_test[self.gaussian_cal_idxs,:], self.y_test[self.gaussian_cal_idxs]
+        return Dataset(self.x_gaussian, self.y_gaussian)
     
     def create_cal(self):
-        X, Y = self.x_test[self.cal_idxs,:], self.y_test[self.cal_idxs]
+        X, Y = self.x_cal_tun[self.cal_idxs,:], self.y_cal_tun[self.cal_idxs]
         return Dataset(X,Y)
     
     def create_tuning(self):
-        X, Y = self.x_test[self.tun_idxs,:], self.y_test[self.tun_idxs]
+        X, Y = self.x_cal_tun[self.tun_idxs,:], self.y_cal_tun[self.tun_idxs]
         return Dataset(X,Y)
 
     def create_evaluation(self):
-        X, Y = self.x_test[self.eval_idxs,:], self.y_test[self.eval_idxs]
-        return Dataset(X,Y)
+        # X, Y = self.x_test[self.eval_idxs,:], self.y_test[self.eval_idxs]
+        return Dataset(self.x_test, self.y_test)
     
     def _load_data(self, path_y, path_x):
-        metadata = pd.read_csv(path_y + "ISIC2018_Task3_Test_GroundTruth.csv")
+        metadata = pd.read_csv(path_y)
         classes = ['akiec', 'bcc', 'bkl', 'df', 'mel', 'nv', 'vasc']
         X = np.zeros(shape=(metadata.shape[0], 299, 299, 3))
         Y = np.zeros(shape=(metadata.shape[0]))
 
-        i = 0
-        for j, entry in enumerate(metadata.itertuples(), 1):
+        for j, entry in enumerate(metadata.itertuples(), 0):
             # Create X
-            x = Image.open(path_x + entry.image_id + ".jpg")
-            x = np.array(x)
-            x = np.resize(x, (299,299,3))
-            X[i] = x
+            img = image.load_img(path_x + entry.image_id + ".jpg", target_size=(299, 299))
+            x = image.img_to_array(img)
+            x = np.expand_dims(x, axis=0)
+            # OpenCV Import
+            # x = cv2.imread(path_x + entry.image_id + ".jpg")
+            # x = cv2.resize(x, dsize=(299, 299), interpolation=cv2.INTER_NEAREST)
+            X[j] = x
 
             # Create Y
-            Y[i] = classes.index(entry.dx)
-            i += 1
+            Y[j] = classes.index(entry.dx)
 
+        X = tf.keras.applications.inception_resnet_v2.preprocess_input(X)
         return (X, Y)
 
 
@@ -202,8 +205,9 @@ class SkinCancerModel(Model2):
     
     def _prepare_input(self, X):
         # The required dimension of the input values is: [number_of_elements, 299, 299, 3]
-        return np.resize(X, (X.shape[0],self.input_shape[0],self.input_shape[1], self.input_shape[2]))
-
+        # X = tf.keras.applications.inception_resnet_v2.preprocess_input(X)
+        #return np.resize(X, (X.shape[0],self.input_shape[0],self.input_shape[1], self.input_shape[2]))
+        return X
 
 
 
