@@ -10,6 +10,7 @@ from commons.ops import determine_deviation_softmax, random_splits
 import numpy as np
 import keras
 from keras import layers
+from keras import metrics
 
 class_to_idx_mapper = lambda x:x
 
@@ -28,12 +29,12 @@ class MNISTEvaluation(Evaluation):
         metrics = [AverageReliabilityScores()]
         partitioning_algs = [DecisionTreePartitioning(), KnnPartitioning()]
 
-        super().evaluate(models=models,
-                         evaluation_set=evaluation_set,
-                         gaussian_cal_set=gaussian_cal_set,
-                         partition_algs=partitioning_algs,
-                         metrics=metrics,
-                         include_softmax=True)
+        return super().evaluate(models=models,
+                                evaluation_set=evaluation_set,
+                                gaussian_cal_set=gaussian_cal_set,
+                                partition_algs=partitioning_algs,
+                                metrics=metrics,
+                                include_softmax=True)
 
     def train_models(self):
         train_data = self.mnist_provider.create_full_train()
@@ -67,8 +68,8 @@ class MNISTEvaluation(Evaluation):
     def _load_models(self):
         return [MNISTModel(ModelLevel.BEST), MNISTModel(ModelLevel.AVG), MNISTModel(ModelLevel.WORST)]
     
-    def _load_std_metrics(self):
-        std_metrics = super()._load_std_metrics()
+    def load_std_metrics(self):
+        std_metrics = super().load_std_metrics()
         std_metrics.append(AverageOutputDeviation(determine_deviation=determine_softmax_pos_fun))
         std_metrics.append(SoftmaxPositionToReliabilityCorrelation(determine_deviation=determine_softmax_pos_fun, num_pos=10))
         std_metrics.append(PearsonCorrelation(determine_deviation=determine_softmax_pos_fun))
@@ -156,7 +157,8 @@ class MNISTModel(Model):
 
         self.model.compile(loss="categorical_crossentropy", 
                            optimizer="adam", 
-                           metrics=["accuracy"])
+                           metrics=[metrics.MeanSquaredError(),
+                                    metrics.Accuracy()])
 
         x_train = self._prepare_x_data(train_data.X)
         y_train = self._prepare_y_data(train_data.Y)
@@ -172,7 +174,8 @@ class MNISTModel(Model):
         
         score = self.model.evaluate(x_test, y_test, verbose=0)
         print("Test loss:", score[0])
-        print("Test accuracy:", score[1])
+        print("MSE:", score[1])
+        print("Test accuracy:", score[2])
 
         self.model.save(self.model_file)
 

@@ -21,6 +21,9 @@ class Metric:
         '''Returns the string formatted result.'''
         raise NotImplementedError
     
+    def copy(self):
+        raise NotImplementedError
+    
     def is_visualizable(self):
         '''Specifies whether the metric is able to visualize the results.'''
 
@@ -41,6 +44,11 @@ class TrueSuccessProbability(Metric):
 
     def get_report(self):
         return "{name}: {result}".format(name=self.name, result=self.true_success)
+    
+    def copy(self):
+        copy = TrueSuccessProbability()
+        copy.true_success = self.true_success
+        return copy
 
     def is_visualizable(self):
         return False
@@ -62,6 +70,13 @@ class AverageReliabilityScores(Metric):
 
     def get_report(self):
         return "{name}: {result}".format(name=self.name, result=self._to_string())
+    
+    def copy(self):
+        copy = AverageReliabilityScores()
+        copy.avg_score_correct = self.avg_score_correct
+        copy.avg_score_incorrect = self.avg_score_incorrect
+        copy.avg_score = self.avg_score
+        return copy
 
     def is_visualizable(self):
         return False
@@ -90,6 +105,11 @@ class AverageOutputDeviation(Metric):
 
     def get_report(self):
         return "{name}: {result}".format(name=self.name, result=self.avg_output_deviation)
+    
+    def copy(self):
+        copy = AverageOutputDeviation(self.determine_deviation)
+        copy.avg_output_deviation = self.avg_output_deviation
+        return copy
 
     def is_visualizable(self):
         return False
@@ -119,9 +139,15 @@ class SoftmaxPositionToReliabilityCorrelation(Metric):
 
     def get_report(self):
         return "{name}: {result}".format(name=self.name, result=self._to_string())
+    
+    def copy(self):
+        copy = SoftmaxPositionToReliabilityCorrelation(self.determine_deviation, self.num_pos)
+        copy.avg_scores = self.avg_scores
+        copy.num_samples_per_pos = self.num_samples_per_pos
+        return copy
 
     def is_visualizable(self):
-        return True
+        return False
     
     def visualize(self):
         avg_scores = []
@@ -158,9 +184,16 @@ class PearsonCorrelation(Metric):
 
     def get_report(self):
         return "{name}: {result}".format(name=self.name, result=self._to_string())
+    
+    def copy(self):
+        copy = PearsonCorrelation(self.determine_deviation)
+        copy.output_deviations = self.output_deviations
+        copy.scores = self.scores
+        copy.pears_coef = self.pears_coef
+        return copy
         
     def is_visualizable(self):
-        return True
+        return False
     
     def visualize(self):
         scatterplot(scores=self.scores,

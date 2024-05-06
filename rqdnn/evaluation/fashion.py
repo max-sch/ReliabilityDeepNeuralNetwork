@@ -12,16 +12,14 @@ import keras
 from keras import layers
 from keras import metrics
 
-idx_to_class_map = {"airplane":0, "automobile":1, "bird":2, "cat":3, "deer":4, "dog":5, "frog":6, "horse":7, "ship":8, "truck":9,}
-
 class_to_idx_mapper = lambda x:x
 
 def determine_softmax_pos_fun(softmax, true_labels):
     return determine_deviation_softmax(softmax, true_labels, class_to_idx_mapper) 
 
-class CIFAR10Evaluation(Evaluation):
+class FashionMNISTEvaluation(Evaluation):
     def __init__(self) -> None:
-        self.mnist_provider = CFIR10DatasetProvider()
+        self.mnist_provider = FashionMNISTDatasetProvider()
 
     def evaluate(self):
         models = self._load_models()
@@ -42,17 +40,17 @@ class CIFAR10Evaluation(Evaluation):
         train_data = self.mnist_provider.create_full_train()
         test_data = self.mnist_provider.create_evaluation()
 
-        model = CFIR10Model(model_level=ModelLevel.BEST, load_model=False)
+        model = FashionMNISTModel(model_level=ModelLevel.BEST, load_model=False)
         model.train_and_save_model(train_data, test_data)
 
         train_data = self.mnist_provider.create_half_train()
 
-        model = CFIR10Model(model_level=ModelLevel.AVG, load_model=False)
+        model = FashionMNISTModel(model_level=ModelLevel.AVG, load_model=False)
         model.train_and_save_model(train_data, test_data)
 
-        train_data = self.mnist_provider.create_ten_percent_train()
+        train_data = self.mnist_provider.create_one_percent_train()
 
-        model = CFIR10Model(model_level=ModelLevel.WORST, load_model=False)
+        model = FashionMNISTModel(model_level=ModelLevel.WORST, load_model=False)
         model.train_and_save_model(train_data, test_data)
 
     def estimate_gaussian(self, features, predictions):
@@ -68,7 +66,7 @@ class CIFAR10Evaluation(Evaluation):
                                                            class_to_idx_mapper=class_to_idx_mapper)
 
     def _load_models(self):
-        return [CFIR10Model(ModelLevel.BEST), CFIR10Model(ModelLevel.AVG), CFIR10Model(ModelLevel.WORST)]
+        return [FashionMNISTModel(ModelLevel.BEST), FashionMNISTModel(ModelLevel.AVG), FashionMNISTModel(ModelLevel.WORST)]
     
     def load_std_metrics(self):
         std_metrics = super().load_std_metrics()
@@ -77,11 +75,11 @@ class CIFAR10Evaluation(Evaluation):
         std_metrics.append(PearsonCorrelation(determine_deviation=determine_softmax_pos_fun))
         return std_metrics
     
-class CFIR10DatasetProvider:
+class FashionMNISTDatasetProvider:
     def __init__(self) -> None:
-        (self.x_train, self.y_train), (self.x_test, self.y_test) = keras.datasets.cifar10.load_data()
+        (self.x_train, self.y_train), (self.x_test, self.y_test) = keras.datasets.fashion_mnist.load_data()
 
-        train_cal_split = random_splits([40000, 10000])
+        train_cal_split = random_splits([50000, 10000])
         self.train_idxs = train_cal_split == 0
         self.gaussian_cal_idxs = train_cal_split == 1
 
@@ -91,43 +89,43 @@ class CFIR10DatasetProvider:
         self.tun_idxs = eval_cal_tun_split == 2
 
     def create_full_train(self):
-        X, Y = self.x_train[self.train_idxs,:], self.y_train[self.train_idxs][:,0]
+        X, Y = self.x_train[self.train_idxs,:], self.y_train[self.train_idxs]
         return Dataset(X, Y)
     
     def create_half_train(self):
-        x_train, y_train = self.x_train[self.train_idxs,:], self.y_train[self.train_idxs][:,0]
-        half_train_split = random_splits([20000, 20000]) == 0
+        x_train, y_train = self.x_train[self.train_idxs,:], self.y_train[self.train_idxs]
+        half_train_split = random_splits([25000, 25000]) == 0
         X, Y = x_train[half_train_split,:], y_train[half_train_split]
         return Dataset(X, Y)
     
-    def create_ten_percent_train(self):
-        x_train, y_train = self.x_train[self.train_idxs,:], self.y_train[self.train_idxs][:,0]
-        ten_percent_train_split = random_splits([4000, 36000]) == 0
-        X, Y = x_train[ten_percent_train_split,:], y_train[ten_percent_train_split]
+    def create_one_percent_train(self):
+        x_train, y_train = self.x_train[self.train_idxs,:], self.y_train[self.train_idxs]
+        one_percent_train_split = random_splits([500, 49500]) == 0
+        X, Y = x_train[one_percent_train_split,:], y_train[one_percent_train_split]
         return Dataset(X, Y)
     
     def create_gaussian_cal(self):
-        X, Y = self.x_train[self.gaussian_cal_idxs,:], self.y_train[self.gaussian_cal_idxs][:,0]
+        X, Y = self.x_train[self.gaussian_cal_idxs,:], self.y_train[self.gaussian_cal_idxs]
         return Dataset(X, Y)
     
     def create_cal(self):
-        X, Y = self.x_test[self.cal_idxs,:], self.y_test[self.cal_idxs][:,0]
+        X, Y = self.x_test[self.cal_idxs,:], self.y_test[self.cal_idxs]
         return Dataset(X, Y)
     
     def create_tuning(self):
-        X, Y = self.x_test[self.tun_idxs,:], self.y_test[self.tun_idxs][:,0]
+        X, Y = self.x_test[self.tun_idxs,:], self.y_test[self.tun_idxs]
         return Dataset(X, Y)
 
     def create_evaluation(self):
-        X, Y = self.x_test[self.eval_idxs,:], self.y_test[self.eval_idxs][:,0]
+        X, Y = self.x_test[self.eval_idxs,:], self.y_test[self.eval_idxs]
         return Dataset(X, Y)
     
-class CFIR10Model(Model):
+class FashionMNISTModel(Model):
     def __init__(self, model_level, load_model=True) -> None:
-        self.name = "CFIR10Model_{level}".format(level=model_level.value)
+        self.name = "FashionMNISTModel_{level}".format(level=model_level.value)
         self.model_file = self.name + ".keras"
         self.num_classes = 10
-        self.input_shape = (32, 32, 3)
+        self.input_shape = (28, 28, 1)
         if load_model:
             self.model = self.load_from(self.model_file)
             
@@ -136,34 +134,18 @@ class CFIR10Model(Model):
             self.feature_extractor.pop()
             self.feature_extractor.summary()
         else:
-            self.model = keras.Sequential()
-            self.model.add(layers.Conv2D(32, (3,3), padding='same', activation='relu', input_shape=self.input_shape))
-            self.model.add(layers.BatchNormalization())
-            self.model.add(layers.Conv2D(32, (3,3), padding='same', activation='relu'))
-            self.model.add(layers.BatchNormalization())
-            self.model.add(layers.MaxPooling2D(pool_size=(2,2)))
-            self.model.add(layers.Dropout(0.3))
-
-            self.model.add(layers.Conv2D(64, (3,3), padding='same', activation='relu'))
-            self.model.add(layers.BatchNormalization())
-            self.model.add(layers.Conv2D(64, (3,3), padding='same', activation='relu'))
-            self.model.add(layers.BatchNormalization())
-            self.model.add(layers.MaxPooling2D(pool_size=(2,2)))
-            self.model.add(layers.Dropout(0.5))
-
-            self.model.add(layers.Conv2D(128, (3,3), padding='same', activation='relu'))
-            self.model.add(layers.BatchNormalization())
-            self.model.add(layers.Conv2D(128, (3,3), padding='same', activation='relu'))
-            self.model.add(layers.BatchNormalization())
-            self.model.add(layers.MaxPooling2D(pool_size=(2,2)))
-            self.model.add(layers.Dropout(0.5))
-
-            self.model.add(layers.Flatten())
-            self.model.add(layers.Dense(128, activation='relu'))
-            self.model.add(layers.BatchNormalization())
-            self.model.add(layers.Dropout(0.5))
-            self.model.add(layers.Dense(self.num_classes, activation='softmax'))
-            
+            self.model = keras.Sequential(
+                [
+                    keras.Input(shape=self.input_shape),
+                    layers.Conv2D(32, kernel_size=(3, 3), activation="relu"),
+                    layers.MaxPooling2D(pool_size=(2, 2)),
+                    layers.Dropout(0.25),
+                    layers.Flatten(),
+                    layers.Dense(256, activation='relu'),
+                    layers.Dropout(0.5),
+                    layers.Dense(self.num_classes, activation="softmax"),
+                ]
+            )
             self.model.summary()
 
             self.feature_extractor = None
@@ -210,7 +192,7 @@ class CFIR10Model(Model):
     def softmax_for_features(self, features):
         softmax = self.model.layers[-1]
         return softmax(features)
-
+    
     def project(self, X):
         X_prep = self._prepare_x_data(X)
         return self.feature_extractor(X_prep)
@@ -218,7 +200,8 @@ class CFIR10Model(Model):
     def _prepare_x_data(self, X):
         # Scale images to the [0, 1] range
         X_prep = X.astype("float32") / 255
-        return X_prep
+        # Make sure images have shape (28, 28, 1)
+        return np.expand_dims(X_prep, -1)
 
     def _prepare_y_data(self, Y):
         return keras.utils.to_categorical(Y, self.num_classes)

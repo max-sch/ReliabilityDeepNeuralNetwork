@@ -13,7 +13,7 @@ class ReliabilitySpecificManifoldAnalyzer:
         self.feature_samples = None
         self.rel_scores = None
 
-    def sample(self, gaussian_mixture, num_runs=10):
+    def sample(self, gaussian_mixture):
         result = self.rel_analyzer.analyze(self.test_data)
         
         self._print_progress(result.success())
@@ -21,7 +21,7 @@ class ReliabilitySpecificManifoldAnalyzer:
         self.feature_samples = result.X
         self.rel_scores = result.reliability_scores
         
-        convergence_criterion = ThresholdConvergence(result.success())
+        convergence_criterion = MaxRunsAreReached(result.success(), max_runs=50)
         while True:
             new_feature_samples = gaussian_mixture.sample_features(num_samples_per_iteration)
 
@@ -37,7 +37,7 @@ class ReliabilitySpecificManifoldAnalyzer:
             if convergence_criterion.is_satisfied(success):
                 break
 
-        convergence_criterion.print_convergence()
+        return convergence_criterion.success_probs
     
     def analyze(self, partition_alg):
         partition_map = ManifoldPartitionMap(partition_alg)
@@ -62,9 +62,6 @@ class ConvergenceCriterion:
     def check_criterion(self) -> bool:
         '''This method evaluates whether the criterion is met'''
         raise NotImplementedError
-    
-    def print_convergence(self):
-        lineplot(num_runs=[*range(self.num_runs + 1)], scores=self.success_probs)
         
 class MaxRunsAreReached(ConvergenceCriterion):
     def __init__(self, success_prob, max_runs) -> None:

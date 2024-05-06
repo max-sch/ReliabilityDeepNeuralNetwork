@@ -2,13 +2,10 @@ from dnn.dataset import Dataset
 from latentspace.analyzer import ReliabilitySpecificManifoldAnalyzer
 from commons.print import print_progress, print_start, print_end
 from evaluation.metrics import TrueSuccessProbability, AverageReliabilityScores
-from evaluation.visual import histoplot, boxplot
-from datetime import datetime
 from enum import Enum
-from os.path import join
+from evaluation.report import EvaluationReport, ModelReport
 
 import numpy as np
-import os
 
 class EvaluationResult:
     def __init__(self, 
@@ -36,28 +33,6 @@ class EvaluationResult:
 
     def get_incorrect_scores(self):
         return self.rel_scores[self.incorrect_idxs]
-    
-class EvaluationReport:
-    def __init__(self, model_name, result_dir="", format='txt') -> None:
-        self.result_dir = result_dir
-        self.format = format
-        self.date = datetime.today().strftime('%Y-%m-%d_%H-%M-%S')
-        self.content = "Evaluation report {date} for {model}".format(date=self.date, model=model_name)
-        self.content = self.content.center(60, '=') + "\n"
-
-    def append(self, result):
-        self.content += result + "\n"
-
-    def append_headline(self, headline):
-        self.content += headline.center(60, '-') + "\n"
-
-    def save(self):
-        self.content += "End of report".center(60, '=')
-
-        file = join(self.result_dir, 'EvaluationReport_{date}.{ext}'.format(date=self.date, ext=self.format))
-        result_file = open(file, 'w')
-        result_file.write(self.content)
-        result_file.close()
 
 class ModelLevel(Enum):
     WORST = "Worst"
@@ -72,73 +47,77 @@ class Evaluation:
                  partition_algs, 
                  metrics,
                  include_softmax=False,
-                 disable_partitioning=True):
+                 disable_partitioning=True,
+                 repetitions=5):
+        reports = []
         for model in models:
-            self.report = EvaluationReport(model.name)
+            report = EvaluationReport(model)   
 
-            print_start(model.name)
-            self._print_and_report("Calculate reliability scores of {model}".format(model=model.name))
+            for repetition in range(repetitions):
+                model_report = self._evaluate(model,
+                                              gaussian_cal_set,
+                                              evaluation_set,
+                                              partition_algs,
+                                              metrics,
+                                              include_softmax,
+                                              disable_partitioning)
+                report.add(repetition, model_report)
+            
+            reports.append(report)
 
-            rel_analyzer = self.create_rel_analyzer_for(model)
+        return reports
 
-            predictions = model.predict(evaluation_set.X)
-            features = model.project(evaluation_set.X)
-            rel_scores = calc_rel_scores(features, rel_analyzer)
-            softmax = model.softmax(evaluation_set.X) if include_softmax else None
-            diffs = predictions - evaluation_set.Y
-            result = EvaluationResult(correct_idxs=diffs==0,
-                                      incorrect_idxs=diffs!=0, 
-                                      evaluation_set=evaluation_set,
-                                      features=features, 
-                                      rel_scores=rel_scores,
-                                      softmax=softmax
-            )
+    def _evaluate(self,
+                  model,
+                  gaussian_cal_set,
+                  evaluation_set,
+                  partition_algs,
+                  metrics,
+                  include_softmax=False,
+                  disable_partitioning=True):
+        self.model_report = ModelReport(model)
 
-            self._evaluate_and_report_metrics(self._load_std_metrics(), result)
+        print_start(model.name)
+        print_progress("Calculate reliability scores of {model}".format(model=model.name))
 
-            histoplot(scores_correct=result.get_correct_scores(), 
-                      scores_incorrect=result.get_incorrect_scores(), 
-                      title="Calculated reliability score distribution",
-                      show_plot=True)
-            boxplot(scores_correct=result.get_correct_scores(),
-                    scores_incorrect=result.get_incorrect_scores(),
-                    title="Calculated reliability scores (correct and incorrect)",
-                    show_plot=True)
+        rel_analyzer = self.create_rel_analyzer_for(model)
 
-            predictions = model.predict(gaussian_cal_set.X)
-            features = model.project(gaussian_cal_set.X)
-            gaussian_mixture = self.estimate_gaussian(features, predictions)
+        result = self._evaluate_model(model, evaluation_set, rel_analyzer, include_softmax)
 
-            ls_analyzer = ReliabilitySpecificManifoldAnalyzer(model=model, 
-                                                              test_data=Dataset(X=features, Y=predictions), 
-                                                              rel_analyzer=rel_analyzer
-            )
-            ls_analyzer.sample(gaussian_mixture)
+        self._evaluate_and_report_metrics(self.load_std_metrics(), result)
 
-            if not disable_partitioning:
-                for partition_alg in partition_algs:
-                    self._print_and_report("Estimated reliability scores based on {approach}".format(approach=partition_alg.name))
+        predictions = model.predict(gaussian_cal_set.X)
+        features = model.project(gaussian_cal_set.X)
+        gaussian_mixture = self.estimate_gaussian(features, predictions)
 
-                    partition_map = ls_analyzer.analyze(partition_alg)
-                    
-                    estimated_rel_scores = partition_map.calc_scores(result.features)
-                    result = EvaluationResult(correct_idxs=result.correct_idxs,
-                                            incorrect_idxs=result.incorrect_idxs,
-                                            evaluation_set=result.evaluation_set,
-                                            features=result.features,
-                                            rel_scores=estimated_rel_scores,
-                                            softmax=result.softmax
-                    )
+        ls_analyzer = ReliabilitySpecificManifoldAnalyzer(model=model, 
+                                                          test_data=Dataset(X=features, Y=predictions), 
+                                                          rel_analyzer=rel_analyzer
+        )
+        success_probs = ls_analyzer.sample(gaussian_mixture)
 
-                    histoplot(scores_correct=result.get_correct_scores(), 
-                                scores_incorrect=result.get_incorrect_scores(), 
-                                title="Reliability score distribution based on {approach}".format(approach=partition_alg.name),
-                                show_plot=True)
+        self.model_report.add_convergence(success_probs)
 
-                    self._evaluate_and_report_metrics(metrics, result)
+        if not disable_partitioning:
+            for partition_alg in partition_algs:
+                print_progress("Estimated reliability scores based on {approach}".format(approach=partition_alg.name))
 
-            self.report.save()
-            print_end()
+                partition_map = ls_analyzer.analyze(partition_alg)
+                
+                estimated_rel_scores = partition_map.calc_scores(result.features)
+                result = EvaluationResult(correct_idxs=result.correct_idxs,
+                                        incorrect_idxs=result.incorrect_idxs,
+                                        evaluation_set=result.evaluation_set,
+                                        features=result.features,
+                                        rel_scores=estimated_rel_scores,
+                                        softmax=result.softmax
+                )
+
+                self._evaluate_and_report_metrics(metrics, result)
+
+        print_end()
+
+        return self.model_report
 
     def estimate_gaussian(self, features, predictions):
         '''Estimates the gaussian mixture for a set of features and predictions of a given dnn model.'''
@@ -148,22 +127,29 @@ class Evaluation:
         '''Creates a reliability analyzer for a given DNN model.'''
         raise NotImplementedError
     
-    def _load_std_metrics(self):
+    def load_std_metrics(self):
         return [TrueSuccessProbability(), AverageReliabilityScores()]
     
     def _evaluate_and_report_metrics(self, metrics, result):
         for metric in metrics:
             metric.apply(result)
             metric.print_result()
-            if metric.is_visualizable():
-                metric.visualize()
 
-            self.report.append(metric.get_report())
-    
-    def _print_and_report(self, message):
-        print_progress(message)
-        self.report.append_headline(message)
-    
+            self.model_report.add(metric.copy())
+
+    def _evaluate_model(self, model, evaluation_set, rel_analyzer, include_softmax):
+        predictions = model.predict(evaluation_set.X)
+        features = model.project(evaluation_set.X)
+        rel_scores = calc_rel_scores(features, rel_analyzer)
+        softmax = model.softmax(evaluation_set.X) if include_softmax else None
+        diffs = predictions - evaluation_set.Y
+        return EvaluationResult(correct_idxs=diffs==0,
+                                    incorrect_idxs=diffs!=0, 
+                                    evaluation_set=evaluation_set,
+                                    features=features, 
+                                    rel_scores=rel_scores,
+                                    softmax=softmax
+        )
 
 def calc_rel_scores(features, rel_analyzer):
         result = rel_analyzer.analyze(Dataset(X=features, Y=np.zeros((len(features)))))
