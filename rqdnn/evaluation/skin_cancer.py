@@ -30,8 +30,6 @@ class SkinCancerEvaluation(Evaluation):
         gaussian_cal_set = self.skin_images_provider.create_gaussian_cal()
         evaluation_set = self.skin_images_provider.create_evaluation()
 
-        print("TEST2")
-        print(evaluation_set.size())
         metrics = [AverageReliabilityScores()]
         partitioning_algs = [DecisionTreePartitioning(), KnnPartitioning()]
 
@@ -47,7 +45,7 @@ class SkinCancerEvaluation(Evaluation):
         means_init = estimate_init_means(features, predictions, num_labels=7)
         cluster_analyzer = GaussianClusterAnalyzer(means_init)
         cluster_analyzer.estimate(features)
-        return None
+        return cluster_analyzer
     
     def create_rel_analyzer_for(self, model):
         return ConformalPredictionBasedReliabilityAnalyzer(model=model,
@@ -70,14 +68,10 @@ class SkinCancerDatasetProvider:
         (self.x_test, self.y_test) = self._load_data("/evaluationData/", "/evaluationData/ISIC2018_Task3_Test_Images/ISIC2018_Task3_Test_Images/" )
         number_of_test_data = self.y_test.shape[0]
         eval_gau_cal_tun_split = random_splits([math.floor(number_of_test_data * 0.7), math.floor(number_of_test_data * 0.1), math.floor(number_of_test_data * 0.1), math.floor(number_of_test_data * 0.1)])
-        
-        print("ANZAHL TEST DATEN: ")
-        print(number_of_test_data)
 
         self.eval_idxs = [ i for i, x in enumerate(eval_gau_cal_tun_split == 0) if x]
         self.cal_idxs = [ i for i, x in enumerate(eval_gau_cal_tun_split == 1) if x]
         self.tun_idxs = [ i for i, x in enumerate(eval_gau_cal_tun_split == 2) if x]
-        print(self.cal_idxs)
         self.gaussian_cal_idxs = [ i for i, x in enumerate(eval_gau_cal_tun_split == 3) if x]
     
     def create_gaussian_cal(self):
@@ -114,11 +108,6 @@ class SkinCancerDatasetProvider:
             Y[i] = classes.index(entry.dx)
             i += 1
 
-        print("Dimension X: ")
-        print(X.shape)
-
-        print("Dimension Y: ")
-        print(Y.shape)
         return (X, Y)
 
 
@@ -161,6 +150,7 @@ class SkinCancerModel(Model2):
         conv = Dropout(0.5)(conv)
         
         output = Flatten()(conv)
+        output = Dense(128, activation='linear')(output)
         output = Dense(7, activation='softmax')(output)
         model = Model(inputs=irv2.input, outputs=output)
 
@@ -176,6 +166,11 @@ class SkinCancerModel(Model2):
         softmax = self.model.layers[-1]
         softmax_predictions = softmax(feature)
         return {class_idx: float(probability) for class_idx, probability in enumerate(softmax_predictions[0])}
+
+    def softmax_for_features(self, features):
+        softmaxTest = self.model.layers[-1]
+        features_test = np.expand_dims(features, axis=0)
+        return softmaxTest(features_test)[0]
 
     def predict(self, x):
         softmax_predictions = self.softmax(x)
@@ -193,10 +188,10 @@ class SkinCancerModel(Model2):
         return {class_idx: float(probability) for class_idx, probability in enumerate(self.softmax(x)[0])}
 
     def project(self, x):
-        x = self._prepare_input(x)
-        print("TEST")
-        print(self.feature_extractor.predict(x)[0].shape)
-        return [float(element) for element in self.feature_extractor.predict(x)[0]]
+        #x = self._prepare_input(x)
+        #return np.array([float(element) for element in self.feature_extractor.predict(x)[0]])
+        X = self._prepare_input(x)
+        return self.feature_extractor.predict(X)
     
     def project_all(self, X):
         X = self._prepare_input(X)

@@ -24,8 +24,13 @@ class GaussianClusterAnalyzer:
     def __init__(self, means_init) -> None:
         self.gaussian_mixture = GaussianMixture(n_components=means_init.shape[0], means_init=means_init) 
 
+
     def estimate(self, features):
         self.gaussian_mixture = self.gaussian_mixture.fit(features)
+        
+        # In the event that only one Gaussian distribution is contained in the Gaussian mixture, the weight of this must be set to 1, otherwise an error will be thrown
+        if self.gaussian_mixture.weights_.shape[0] == 1:
+            self.gaussian_mixture.weights_[0] = 1
 
     def sample_features(self, num_samples=1000):
         return self.gaussian_mixture.sample(num_samples)[0]      
