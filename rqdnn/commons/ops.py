@@ -73,6 +73,12 @@ class LatexTableBuilder:
     def add_cifar(self, model_to_rows):
         self._add_dataset(model_to_rows, {"Best": "$\\cifarbest$", "Avg": "$\\cifaravg$", "Worst": "$\\cifarworst$"})
 
+    def add_fashion(self, model_to_rows):
+        self._add_dataset(model_to_rows, {"Best": "$\\fashionbest$", "Avg": "$\\fashionavg$", "Worst": "$\\fashionworst$"})
+
+    def add_skin(self, model_to_rows):
+        self._add_dataset(model_to_rows, {"Best": "$\\skinbest$", "Avg": "$\\skinavg$", "Worst": "$\\skinworst$"})
+
     def build(self):
         self._replace_last_occurrence("\\hline\\hline \n", "\\bottomrule \\\\ \n")
         self.table += "\\multicolumn{10}{c}{*** With p-value  $< 0.0001$ indicating high statistical significance} \n"

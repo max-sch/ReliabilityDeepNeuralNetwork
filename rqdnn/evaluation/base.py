@@ -80,8 +80,6 @@ class Evaluation:
         print_start(model.name)
         print_progress("Calculate reliability scores of {model}".format(model=model.name))
             
-        self._evaluate_and_report_metrics(self.load_std_metrics(), result)
-
         rel_analyzer = self.create_rel_analyzer_for(model)
 
         result = self._evaluate_model(model, evaluation_set, rel_analyzer, include_softmax)

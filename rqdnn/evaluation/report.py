@@ -15,21 +15,25 @@ class EvaluationReport:
     def add(self, repetition, model_report):
         self.model_reports[repetition] = model_report
 
-    def export(mnist_reports, cifar_reports, result_dir="./results"):
-        EvaluationReport._export_to_table(mnist_reports, cifar_reports, result_dir)
-        EvaluationReport._export_figures(mnist_reports, cifar_reports, result_dir)
+    def export(mnist_reports, cifar_reports, fashion_report, skin_reports, result_dir="./results"):
+        EvaluationReport._export_to_table(mnist_reports, cifar_reports, fashion_report, skin_reports, result_dir)
+        EvaluationReport._export_figures(mnist_reports, cifar_reports, fashion_report, skin_reports, result_dir)
 
-    def _export_figures(mnist_reports, cifar_reports, result_dir):
+    def _export_figures(mnist_reports, cifar_reports, fashion_report, skin_reports, result_dir):
         if not exists(result_dir):
             mkdir(result_dir)
         
         # Line plots of convergence behavior
         EvaluationReport._export_lineplots(mnist_reports, filename=join(result_dir, "mnistconv.png"))
         EvaluationReport._export_lineplots(cifar_reports, filename=join(result_dir, "cifarconv.png"))
+        EvaluationReport._export_lineplots(fashion_report, filename=join(result_dir, "fashionconv.png"))
+        EvaluationReport._export_lineplots(skin_reports, filename=join(result_dir, "skinconv.png"))
 
         # Bar plots of output deviation
         EvaluationReport._export_barplots(mnist_reports, result_dir)
         EvaluationReport._export_barplots(cifar_reports, result_dir)
+        EvaluationReport._export_barplots(fashion_report, result_dir)
+        EvaluationReport._export_barplots(skin_reports, result_dir)
 
     def _export_lineplots(reports, filename):
         scores = []
@@ -99,7 +103,7 @@ class EvaluationReport:
             filename = join(result_dir, "barplot_{}.png".format(eval_report.model.name))
             plt.savefig(filename) 
 
-    def _export_to_table(mnist_reports, cifar_reports, result_dir):
+    def _export_to_table(mnist_reports, cifar_reports, fashion_report, skin_reports, result_dir):
         builder = LatexTableBuilder()
         
         model_to_rows = {report.model:EvaluationReport._to_table_row(report) for report in mnist_reports}
@@ -107,6 +111,12 @@ class EvaluationReport:
 
         model_to_rows = {report.model:EvaluationReport._to_table_row(report) for report in cifar_reports}
         builder.add_cifar(model_to_rows)
+
+        model_to_rows = {report.model:EvaluationReport._to_table_row(report) for report in fashion_report}
+        builder.add_fashion(model_to_rows)
+
+        model_to_rows = {report.model:EvaluationReport._to_table_row(report) for report in skin_reports}
+        builder.add_skin(model_to_rows)
         
         table = builder.build()
 
