@@ -11,31 +11,32 @@ class EvaluationReport:
     def __init__(self, model) -> None:
         self.model = model
         self.model_reports = {}
+        self.mse = None
 
     def add(self, repetition, model_report):
         self.model_reports[repetition] = model_report
 
     def export(mnist_reports, cifar_reports, fashion_report, skin_reports, result_dir="./results"):
-        EvaluationReport._export_to_table(mnist_reports, cifar_reports, fashion_report, skin_reports, result_dir)
-        EvaluationReport._export_figures(mnist_reports, cifar_reports, fashion_report, skin_reports, result_dir)
+        EvaluationReport.export_to_table(mnist_reports, cifar_reports, fashion_report, skin_reports, result_dir)
+        EvaluationReport.export_figures(mnist_reports, cifar_reports, fashion_report, skin_reports, result_dir)
 
-    def _export_figures(mnist_reports, cifar_reports, fashion_report, skin_reports, result_dir):
+    def export_figures(mnist_reports, cifar_reports, fashion_report, skin_reports, result_dir):
         if not exists(result_dir):
             mkdir(result_dir)
         
         # Line plots of convergence behavior
-        EvaluationReport._export_lineplots(mnist_reports, filename=join(result_dir, "mnistconv.png"))
-        EvaluationReport._export_lineplots(cifar_reports, filename=join(result_dir, "cifarconv.png"))
-        EvaluationReport._export_lineplots(fashion_report, filename=join(result_dir, "fashionconv.png"))
-        EvaluationReport._export_lineplots(skin_reports, filename=join(result_dir, "skinconv.png"))
+        EvaluationReport.export_lineplots(mnist_reports, filename=join(result_dir, "mnistconv.png"))
+        EvaluationReport.export_lineplots(cifar_reports, filename=join(result_dir, "cifarconv.png"))
+        EvaluationReport.export_lineplots(fashion_report, filename=join(result_dir, "fashionconv.png"))
+        EvaluationReport.export_lineplots(skin_reports, filename=join(result_dir, "skinconv.png"))
 
         # Bar plots of output deviation
-        EvaluationReport._export_barplots(mnist_reports, result_dir)
-        EvaluationReport._export_barplots(cifar_reports, result_dir)
-        EvaluationReport._export_barplots(fashion_report, result_dir)
-        EvaluationReport._export_barplots(skin_reports, result_dir)
+        EvaluationReport.export_barplots(mnist_reports, result_dir)
+        EvaluationReport.export_barplots(cifar_reports, result_dir)
+        EvaluationReport.export_barplots(fashion_report, result_dir)
+        EvaluationReport.export_barplots(skin_reports, result_dir)
 
-    def _export_lineplots(reports, filename):
+    def export_lineplots(reports, filename):
         scores = []
         num_runs = []
         models = []
@@ -56,7 +57,7 @@ class EvaluationReport:
         
         plt.savefig(filename) 
 
-    def _export_barplots(reports, result_dir):
+    def export_barplots(reports, result_dir):
         for eval_report in reports:
             avg_scores = []
             num_samples = []
@@ -103,19 +104,19 @@ class EvaluationReport:
             filename = join(result_dir, "barplot_{}.png".format(eval_report.model.name))
             plt.savefig(filename) 
 
-    def _export_to_table(mnist_reports, cifar_reports, fashion_report, skin_reports, result_dir):
+    def export_to_table(mnist_reports, cifar_reports, fashion_report, skin_reports, result_dir):
         builder = LatexTableBuilder()
         
-        model_to_rows = {report.model:EvaluationReport._to_table_row(report) for report in mnist_reports}
+        model_to_rows = {report.model:EvaluationReport.to_table_row(report) for report in mnist_reports}
         builder.add_mnist(model_to_rows)
 
-        model_to_rows = {report.model:EvaluationReport._to_table_row(report) for report in cifar_reports}
+        model_to_rows = {report.model:EvaluationReport.to_table_row(report) for report in cifar_reports}
         builder.add_cifar(model_to_rows)
 
-        model_to_rows = {report.model:EvaluationReport._to_table_row(report) for report in fashion_report}
+        model_to_rows = {report.model:EvaluationReport.to_table_row(report) for report in fashion_report}
         builder.add_fashion(model_to_rows)
 
-        model_to_rows = {report.model:EvaluationReport._to_table_row(report) for report in skin_reports}
+        model_to_rows = {report.model:EvaluationReport.to_table_row(report) for report in skin_reports}
         builder.add_skin(model_to_rows)
         
         table = builder.build()
@@ -126,7 +127,7 @@ class EvaluationReport:
         latex_file.write(table)
         latex_file.close()
 
-    def _to_table_row(eval_report):
+    def to_table_row(eval_report):
         lower_success_bound = 0
         true_success = 0
         avg_success = 0
@@ -154,20 +155,21 @@ class EvaluationReport:
 
         lower_success_bound = round(lower_success_bound / num_repititions, 4)
         true_success = round(true_success / num_repititions, 4)
+        mse = round(eval_report.mse, 4)
         avg_success = round(avg_success / num_repititions, 4)
         avg_success_correct = round(avg_success_correct / num_repititions, 4)
         avg_success_incorrect = round(avg_success_incorrect / num_repititions, 4)
         avg_out_dev_incorrect = round(avg_out_dev_incorrect / num_repititions, 1)
         pears_coef = round(pears_coef / num_repititions, 4)
 
-        return LatexTableRow(lower_success_bound=lower_success_bound,
-                             true_success=true_success,
-                             mse="TBD",
-                             avg_success=avg_success,
-                             avg_success_correct=avg_success_correct,
-                             avg_success_incorrect=avg_success_incorrect,
-                             avg_out_dev_incorrect=avg_out_dev_incorrect,
-                             pears_coef=pears_coef)
+        return LatexTableRow(lower_success_bound,
+                             true_success,
+                             mse,
+                             avg_success,
+                             avg_success_correct,
+                             avg_success_incorrect,
+                             avg_out_dev_incorrect,
+                             pears_coef)
 
 class ModelReport:
     def __init__(self, model) -> None:

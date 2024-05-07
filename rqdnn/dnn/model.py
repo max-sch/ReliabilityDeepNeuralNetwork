@@ -4,7 +4,7 @@ class Model:
         self.model = self.load_from(model_file)
 
     def load_from(self, model_file):
-        '''Loads the dnn model from specified file'''
+        '''Loads the dnn model from specified file.'''
         raise NotImplementedError
     
     def softmax(self, X):
@@ -12,15 +12,19 @@ class Model:
         raise NotImplementedError
 
     def softmax_for_features(self, features) -> dict:
-        '''Returns the prediction confidence or softmax associated with the given features'''
+        '''Returns the prediction confidence or softmax associated with the given features.'''
         raise NotImplementedError
 
     def predict(self, X):
-        '''Predicts outputs Y for input batch X'''
+        '''Predicts outputs Y for input batch X.'''
         raise NotImplementedError
     
     def project(self, X):
-        '''Projects a batch of inputs X to the feature space'''
+        '''Projects a batch of inputs X to the feature space.'''
+        raise NotImplementedError
+    
+    def calc_mse(self, dataset):
+        '''Calculates the mean-squared-error of the model for a given dataset.'''
         raise NotImplementedError
     
     def get_output_shape(self):

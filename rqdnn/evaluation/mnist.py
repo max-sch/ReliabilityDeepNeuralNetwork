@@ -198,6 +198,13 @@ class MNISTModel(Model):
         X_prep = self._prepare_x_data(X)
         return self.feature_extractor(X_prep)
     
+    def calc_mse(self, dataset):
+        self.model.compile(metrics=[metrics.MeanSquaredError()])
+        x_test = self._prepare_x_data(dataset.X)
+        y_test = self._prepare_y_data(dataset.Y)
+        
+        return self.model.evaluate(x_test, y_test, verbose=0)[1]
+    
     def _prepare_x_data(self, X):
         # Scale images to the [0, 1] range
         X_prep = X.astype("float32") / 255

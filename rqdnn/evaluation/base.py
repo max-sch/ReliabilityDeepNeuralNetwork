@@ -53,6 +53,8 @@ class Evaluation:
         for model in models:
             report = EvaluationReport(model)   
 
+            report.mse = model.calc_mse(evaluation_set)
+
             for repetition in range(repetitions):
                 model_report = self._evaluate(model,
                                               gaussian_cal_set,
