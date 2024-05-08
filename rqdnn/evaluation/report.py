@@ -94,12 +94,12 @@ class EvaluationReport:
             plt.figure()
 
             d={"Avg success levels":avg_scores, "Softmax position":positions}
-            plot = sns.barplot(d, x="Softmax position", y="Avg success levels", hue="Softmax position", legend=None)
+            plot = sns.barplot(d, x="Softmax position", y="Avg success levels", hue="Softmax position", legend=None, errorbar=None)
             for pos in range(num_pos):
                 if pos in pos_to_include:
                     avg_sample = avg_num_samples[pos]
                     avg_avg_score = avg_avg_scores[pos]
-                    plot.text(pos, avg_avg_score + 0.02, str(avg_sample), ha='center', color='black')
+                    plot.text(pos, avg_avg_score + 0.005, str(int(avg_sample)), ha='center', color='black')
 
             filename = join(result_dir, "barplot_{}.png".format(eval_report.model.name))
             plt.savefig(filename) 
