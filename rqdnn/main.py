@@ -18,7 +18,5 @@ if __name__ == '__main__':
     fashion_report = eval.evaluate()
 
     #eval = SkinCancerEvaluation()
+    #eval.train_models()
     #skin_report = eval.evaluate()
-
-    #EvaluationReport.export(mnist_reports, cifar_reports, fashion_report, skin_report)
-    EvaluationReport.export(mnist_reports, cifar_reports, fashion_report)
