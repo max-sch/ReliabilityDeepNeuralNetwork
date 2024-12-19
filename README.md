@@ -10,7 +10,7 @@ For installation, clone the repository and install the required dependencies:
 ```
 git clone ...
 cd ReliabilityDeepNeuralNetwork
-python -m venv env # Active after installation
+python -m venv env # Activate after installation
 pip install -r requirements.txt
 ```
 
